@@ -11,7 +11,6 @@ import com.appodeal.ads.Appodeal;
 import com.appodeal.ads.BannerCallbacks;
 import com.appodeal.ads.InterstitialCallbacks;
 import com.appodeal.ads.RewardedVideoCallbacks;
-import com.appodeal.ads.RewardInfo;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -33,8 +32,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void initAppodeal() {
         Appodeal.setTesting(false);
+
+        // Appodeal 3.x: no consent boolean in initialize()
         Appodeal.initialize(this, APP_KEY,
-                Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.REWARDED_VIDEO, true);
+                Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.REWARDED_VIDEO);
 
         Appodeal.setBannerCallbacks(new BannerCallbacks() {
             @Override public void onBannerLoaded(int height, boolean isPrecache) {}
@@ -77,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> fireJs("window.onRewardedAdFailed && window.onRewardedAdFailed()"));
             }
             @Override public void onRewardedVideoClicked() {}
-            @Override public void onRewardedVideoFinished(double amount, String name) {
+            @Override public void onRewardedVideoFinished(double amount, String currency) {
                 runOnUiThread(() -> fireJs("window.onRewardedAdRewarded && window.onRewardedAdRewarded()"));
             }
             @Override public void onRewardedVideoClosed(boolean finished) {
@@ -102,9 +103,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
 
-        // Critical: expose the bridge the game's index.html already expects
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
-
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient());
         webView.loadUrl("file:///android_asset/game/index.html");
@@ -114,7 +113,6 @@ public class MainActivity extends AppCompatActivity {
         webView.evaluateJavascript(js, null);
     }
 
-    // Called by AndroidBridge
     void showBanner() {
         runOnUiThread(() -> {
             bannerContainer.setVisibility(View.VISIBLE);
@@ -148,18 +146,6 @@ public class MainActivity extends AppCompatActivity {
                 fireJs("window.onRewardedAdFailed && window.onRewardedAdFailed()");
             }
         });
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        Appodeal.onResume(this, Appodeal.BANNER);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        Appodeal.onPause(this, Appodeal.BANNER);
     }
 
     @Override

@@ -47,5 +47,8 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.appodeal.ads:sdk:3.3.1.+'
+    implementation('com.appodeal.ads:sdk:3.3.1.+') {
+        exclude group: 'com.pangle.global'
+        exclude group: 'io.bidmachine', module: 'ads.networks.pangle'
+    }
 }

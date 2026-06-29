@@ -1,0 +1,6 @@
+-keep class com.appodeal.** { *; }
+-keep interface com.appodeal.** { *; }
+-keep class com.explorestack.** { *; }
+-keep interface com.explorestack.** { *; }
+-dontwarn com.appodeal.**
+-dontwarn com.explorestack.**

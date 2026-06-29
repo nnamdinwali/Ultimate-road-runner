@@ -1,0 +1,14 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.jks
+*.keystore
+# game/ folder is bundled into game-assets.tar.gz — don't commit raw files
+app/src/main/assets/game/

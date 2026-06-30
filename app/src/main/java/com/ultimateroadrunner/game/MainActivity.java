@@ -1,13 +1,11 @@
 package com.ultimateroadrunner.game;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
-import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
 import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
 import com.appodeal.ads.Appodeal;
@@ -27,10 +25,18 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Start game first — ads are secondary
-        initWebView();
+        try {
+            initWebView();
+        } catch (Throwable t) {
+            Log.e(TAG, "WebView init error: " + t);
+            new AlertDialog.Builder(this)
+                .setTitle("WebView Error")
+                .setMessage(t.getClass().getSimpleName() + ": " + t.getMessage())
+                .setPositiveButton("OK", null)
+                .show();
+            return;
+        }
 
-        // Init Appodeal safely on a background thread; if it crashes, game still runs
         new Thread(() -> {
             try {
                 runOnUiThread(this::initAppodeal);
@@ -40,6 +46,34 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    private void initWebView() {
+        webView = findViewById(R.id.webView);
+
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setLoadWithOverviewMode(true);
+        settings.setUseWideViewPort(true);
+
+        webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
+        webView.setWebChromeClient(new WebChromeClient());
+
+        // Use the pre-API-23 deprecated method so it works on Android 5/6 (API 21-22)
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            @SuppressWarnings("deprecation")
+            public void onReceivedError(WebView view, int errorCode,
+                                        String description, String failingUrl) {
+                Log.e(TAG, "WebView error " + errorCode + " on " + failingUrl + ": " + description);
+            }
+        });
+
+        webView.loadUrl("file:///android_asset/game/index.html");
+    }
+
     private void initAppodeal() {
         try {
             Appodeal.setTesting(false);
@@ -47,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
                     Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.REWARDED_VIDEO);
             appodealReady = true;
         } catch (Throwable t) {
-            Log.e(TAG, "Appodeal init failed: " + t.getMessage());
+            Log.e(TAG, "Appodeal init failed: " + t);
             return;
         }
 
@@ -62,9 +96,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override public void onBannerClicked() {}
                 @Override public void onBannerExpired() {}
             });
-        } catch (Throwable t) {
-            Log.e(TAG, "Banner callbacks failed: " + t.getMessage());
-        }
+        } catch (Throwable t) { Log.e(TAG, "Banner callbacks: " + t); }
 
         try {
             Appodeal.setInterstitialCallbacks(new InterstitialCallbacks() {
@@ -84,9 +116,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 @Override public void onInterstitialExpired() {}
             });
-        } catch (Throwable t) {
-            Log.e(TAG, "Interstitial callbacks failed: " + t.getMessage());
-        }
+        } catch (Throwable t) { Log.e(TAG, "Interstitial callbacks: " + t); }
 
         try {
             Appodeal.setRewardedVideoCallbacks(new RewardedVideoCallbacks() {
@@ -109,40 +139,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 @Override public void onRewardedVideoExpired() {}
             });
-        } catch (Throwable t) {
-            Log.e(TAG, "Rewarded callbacks failed: " + t.getMessage());
-        }
-    }
-
-    private void initWebView() {
-        webView = findViewById(R.id.webView);
-        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(true);
-        settings.setAllowFileAccessFromFileURLs(true);
-        settings.setAllowUniversalAccessFromFileURLs(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
-        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setLoadWithOverviewMode(true);
-        settings.setUseWideViewPort(true);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-
-        webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
-        webView.setWebChromeClient(new WebChromeClient());
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onReceivedError(WebView view, WebResourceRequest request,
-                                        WebResourceError error) {
-                if (request.isForMainFrame()) {
-                    view.loadUrl("file:///android_asset/index.html");
-                }
-            }
-        });
-        webView.loadUrl("file:///android_asset/game/index.html");
+        } catch (Throwable t) { Log.e(TAG, "Rewarded callbacks: " + t); }
     }
 
     void fireJs(String js) {
@@ -155,7 +152,7 @@ public class MainActivity extends AppCompatActivity {
         if (!appodealReady) return;
         runOnUiThread(() -> {
             try { Appodeal.show(this, Appodeal.BANNER); }
-            catch (Throwable t) { Log.e(TAG, "showBanner error: " + t.getMessage()); }
+            catch (Throwable t) { Log.e(TAG, "showBanner: " + t); }
         });
     }
 
@@ -165,7 +162,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 Appodeal.hide(this, Appodeal.BANNER);
                 fireJs("window.onBannerAdHidden && window.onBannerAdHidden()");
-            } catch (Throwable t) { Log.e(TAG, "hideBanner error: " + t.getMessage()); }
+            } catch (Throwable t) { Log.e(TAG, "hideBanner: " + t); }
         });
     }
 
@@ -182,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
                     fireJs("window.onInterstitialAdFailed && window.onInterstitialAdFailed()");
                 }
             } catch (Throwable t) {
-                Log.e(TAG, "showInterstitial error: " + t.getMessage());
+                Log.e(TAG, "showInterstitial: " + t);
                 fireJs("window.onInterstitialAdFailed && window.onInterstitialAdFailed()");
             }
         });
@@ -201,7 +198,7 @@ public class MainActivity extends AppCompatActivity {
                     fireJs("window.onRewardedAdFailed && window.onRewardedAdFailed()");
                 }
             } catch (Throwable t) {
-                Log.e(TAG, "showRewarded error: " + t.getMessage());
+                Log.e(TAG, "showRewarded: " + t);
                 fireJs("window.onRewardedAdFailed && window.onRewardedAdFailed()");
             }
         });

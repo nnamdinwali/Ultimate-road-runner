@@ -57,15 +57,21 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         
-        // Fix for black screen / asset loading
+        // Fix for pink assets / 3D models (Case sensitivity and Pathing)
         settings.setAllowFileAccessFromFileURLs(true);
         settings.setAllowUniversalAccessFromFileURLs(true);
+        
+        // Ensure WebGL and textures load correctly
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         
         // Performance and Viewport
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
+        
+        // Force Hardware Acceleration at the view level
+        webView.setLayerType(WebView.LAYER_TYPE_HARDWARE, null);
 
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
         

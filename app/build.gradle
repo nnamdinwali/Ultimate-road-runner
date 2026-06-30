@@ -10,8 +10,8 @@ android {
         applicationId "com.ultimateroadrunner.game"
         minSdk 21
         targetSdk 34
-        versionCode 2
-        versionName "1.1"
+        versionCode 1
+        versionName "1.0"
     }
 
     signingConfigs {
@@ -47,7 +47,7 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation('com.appodeal.ads:sdk:3.3.1.+') {
+    implementation('com.appodeal.ads:sdk:3.3.1.0') {
         exclude group: 'com.pangle.global'
         exclude group: 'io.bidmachine', module: 'ads.networks.pangle'
         exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'

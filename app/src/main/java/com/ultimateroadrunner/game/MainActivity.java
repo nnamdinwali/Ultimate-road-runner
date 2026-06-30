@@ -9,6 +9,8 @@ import android.webkit.WebChromeClient;
 import android.webkit.ConsoleMessage;
 import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.webkit.WebViewFeature;
+import androidx.webkit.WebSettingsCompat;
 import com.appodeal.ads.Appodeal;
 import com.appodeal.ads.BannerCallbacks;
 import com.appodeal.ads.InterstitialCallbacks;
@@ -57,11 +59,9 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
         
-        // Fix for pink assets / 3D models (Case sensitivity and Pathing)
+        // Fix for pink assets / 3D models
         settings.setAllowFileAccessFromFileURLs(true);
         settings.setAllowUniversalAccessFromFileURLs(true);
-        
-        // Ensure WebGL and textures load correctly
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         
         // Performance and Viewport
@@ -70,8 +70,13 @@ public class MainActivity extends AppCompatActivity {
         settings.setUseWideViewPort(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         
-        // Force Hardware Acceleration at the view level
+        // Force Hardware Acceleration
         webView.setLayerType(WebView.LAYER_TYPE_HARDWARE, null);
+        
+        // Dark mode / Force Dark fix (sometimes affects WebGL colors)
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+            WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_OFF);
+        }
 
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
         

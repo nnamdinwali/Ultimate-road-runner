@@ -7,6 +7,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
 import androidx.appcompat.app.AppCompatActivity;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import com.appodeal.ads.Appodeal;
 import com.appodeal.ads.BannerCallbacks;
 import com.appodeal.ads.InterstitialCallbacks;
@@ -92,20 +94,36 @@ public class MainActivity extends AppCompatActivity {
 
     private void initWebView() {
         webView = findViewById(R.id.webView);
+
+        // Hardware GPU layer — required for Three.js / PixiJS WebGL rendering
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
+        settings.setAllowFileAccess(true);
         settings.setAllowFileAccessFromFileURLs(true);
         settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
+        // Allow local .glb / .wasm / .js assets to load without mixed-content block
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
-        webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request,
+                                        WebResourceError error) {
+                // If the main game page fails, try root index.html as fallback
+                if (request.isForMainFrame()) {
+                    view.loadUrl("file:///android_asset/index.html");
+                }
+            }
+        });
         webView.loadUrl("file:///android_asset/game/index.html");
     }
 

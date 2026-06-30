@@ -3,26 +3,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Game WebView — fills the screen, shrinks to make room for banner when shown -->
     <WebView
         android:id="@+id/webView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginBottom="0dp" />
-
-    <!-- Banner container — hidden until game calls AndroidBridge.showBanner() -->
-    <FrameLayout
-        android:id="@+id/bannerContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:visibility="gone">
-
-        <com.appodeal.ads.BannerView
-            android:id="@+id/appodealBannerView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-    </FrameLayout>
+        android:layout_height="match_parent" />
 
 </FrameLayout>

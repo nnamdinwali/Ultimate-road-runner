@@ -6,9 +6,9 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
-import androidx.appcompat.app.AppCompatActivity;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import androidx.appcompat.app.AppCompatActivity;
 import com.appodeal.ads.Appodeal;
 import com.appodeal.ads.BannerCallbacks;
 import com.appodeal.ads.InterstitialCallbacks;
@@ -18,24 +18,17 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String APP_KEY = "d7441b7444df839562102f3e95a44793d98cd126509b5ce2";
     WebView webView;
-    private View bannerContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        bannerContainer = findViewById(R.id.bannerContainer);
-        bannerContainer.setVisibility(View.GONE);
-
         initWebView();
         initAppodeal();
     }
 
     private void initAppodeal() {
         Appodeal.setTesting(false);
-
-        // Appodeal 3.x: no consent boolean in initialize()
         Appodeal.initialize(this, APP_KEY,
                 Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.REWARDED_VIDEO);
 
@@ -88,14 +81,10 @@ public class MainActivity extends AppCompatActivity {
             }
             @Override public void onRewardedVideoExpired() {}
         });
-
-        Appodeal.setBannerViewId(R.id.appodealBannerView);
     }
 
     private void initWebView() {
         webView = findViewById(R.id.webView);
-
-        // Hardware GPU layer — required for Three.js / PixiJS WebGL rendering
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
         WebSettings settings = webView.getSettings();
@@ -109,7 +98,6 @@ public class MainActivity extends AppCompatActivity {
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
-        // Allow local .glb / .wasm / .js assets to load without mixed-content block
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
 
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
@@ -118,7 +106,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request,
                                         WebResourceError error) {
-                // If the main game page fails, try root index.html as fallback
                 if (request.isForMainFrame()) {
                     view.loadUrl("file:///android_asset/index.html");
                 }
@@ -132,16 +119,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void showBanner() {
-        runOnUiThread(() -> {
-            bannerContainer.setVisibility(View.VISIBLE);
-            Appodeal.show(this, Appodeal.BANNER_VIEW);
-        });
+        runOnUiThread(() -> Appodeal.show(this, Appodeal.BANNER));
     }
 
     void hideBanner() {
         runOnUiThread(() -> {
-            bannerContainer.setVisibility(View.GONE);
-            Appodeal.hide(this, Appodeal.BANNER_VIEW);
+            Appodeal.hide(this, Appodeal.BANNER);
             fireJs("window.onBannerAdHidden && window.onBannerAdHidden()");
         });
     }

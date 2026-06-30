@@ -6,6 +6,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
+import android.webkit.ConsoleMessage;
 import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
 import com.appodeal.ads.Appodeal;
@@ -14,7 +15,6 @@ import com.appodeal.ads.InterstitialCallbacks;
 import com.appodeal.ads.RewardedVideoCallbacks;
 
 public class MainActivity extends AppCompatActivity {
-
     private static final String TAG = "UltimateRoadRunner";
     private static final String APP_KEY = "d7441b7444df839562102f3e95a44793d98cd126509b5ce2";
     WebView webView;
@@ -48,21 +48,44 @@ public class MainActivity extends AppCompatActivity {
 
     private void initWebView() {
         webView = findViewById(R.id.webView);
-
         WebSettings settings = webView.getSettings();
+        
+        // Essential for GDevelop
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+        
+        // Fix for black screen / asset loading
+        settings.setAllowFileAccessFromFileURLs(true);
+        settings.setAllowUniversalAccessFromFileURLs(true);
+        
+        // Performance and Viewport
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
+        settings.setMediaPlaybackRequiresUserGesture(false);
 
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
-        webView.setWebChromeClient(new WebChromeClient());
+        
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                Log.d(TAG, "JS Console: " + consoleMessage.message() + " -- From line "
+                        + consoleMessage.lineNumber() + " of "
+                        + consoleMessage.sourceId());
+                return true;
+            }
+        });
 
-        // Use the pre-API-23 deprecated method so it works on Android 5/6 (API 21-22)
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                Log.d(TAG, "Page loaded: " + url);
+            }
+
             @Override
             @SuppressWarnings("deprecation")
             public void onReceivedError(WebView view, int errorCode,

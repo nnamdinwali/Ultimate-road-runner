@@ -1,7 +1,10 @@
 package com.ultimateroadrunner.game;
 
 import android.app.AlertDialog;
+import android.net.Uri;
 import android.os.Bundle;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -9,6 +12,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.ConsoleMessage;
 import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewFeature;
 import androidx.webkit.WebSettingsCompat;
 import com.appodeal.ads.Appodeal;
@@ -52,60 +56,58 @@ public class MainActivity extends AppCompatActivity {
         webView = findViewById(R.id.webView);
         WebSettings settings = webView.getSettings();
         
-        // Essential for GDevelop
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
-        
-        // Fix for pink assets / 3D models
-        settings.setAllowFileAccessFromFileURLs(true);
-        settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        
-        // Performance and Viewport
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         
-        // Force Hardware Acceleration
         webView.setLayerType(WebView.LAYER_TYPE_HARDWARE, null);
         
-        // Dark mode / Force Dark fix (sometimes affects WebGL colors)
         if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
             WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_OFF);
         }
 
-        webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
-        
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override
-            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
-                Log.d(TAG, "JS Console: " + consoleMessage.message() + " -- From line "
-                        + consoleMessage.lineNumber() + " of "
-                        + consoleMessage.sourceId());
-                return true;
-            }
-        });
+        final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
+                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
+                .build();
 
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                return assetLoader.shouldInterceptRequest(request.getUrl());
+            }
+
+            @Override
+            @SuppressWarnings("deprecation")
+            public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+                return assetLoader.shouldInterceptRequest(Uri.parse(url));
+            }
+
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 Log.d(TAG, "Page loaded: " + url);
             }
+        });
 
+        webView.setWebChromeClient(new WebChromeClient() {
             @Override
-            @SuppressWarnings("deprecation")
-            public void onReceivedError(WebView view, int errorCode,
-                                        String description, String failingUrl) {
-                Log.e(TAG, "WebView error " + errorCode + " on " + failingUrl + ": " + description);
+            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                Log.d(TAG, "JS Console: " + consoleMessage.message());
+                return true;
             }
         });
 
-        webView.loadUrl("file:///android_asset/game/index.html");
+        webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
+        
+        // Load using the virtual domain to fix pink assets/WebGL issues
+        webView.loadUrl("https://appassets.androidplatform.net/assets/game/index.html");
     }
 
     private void initAppodeal() {

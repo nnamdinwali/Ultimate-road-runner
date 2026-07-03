@@ -10,8 +10,8 @@ android {
         applicationId "com.ultimateroadrunner.game"
         minSdk 21
         targetSdk 34
-        versionCode 8
-        versionName "1.7"
+        versionCode 9
+        versionName "1.8"
     }
 
     signingConfigs {
@@ -49,8 +49,7 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.9.0'
     
-    // Appodeal SDK without AdMob to bypass CMP requirement
-    implementation('com.appodeal.ads:sdk:3.3.1.0') {
-        exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
-    }
+    // Use the full Appodeal SDK but disable AdMob and Pangle via the initialize call instead of stripping libraries
+    // This prevents the "NoClassDefFoundError" crash while still bypassing the CMP requirement
+    implementation 'com.appodeal.ads:sdk:3.3.1.0'
 }

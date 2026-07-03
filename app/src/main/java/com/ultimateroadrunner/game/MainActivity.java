@@ -1,29 +1,26 @@
 package com.ultimateroadrunner.game;
 
-import android.app.AlertDialog;
-import android.net.Uri;
 import android.os.Bundle;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
+import android.util.Log;
+import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.webkit.WebChromeClient;
-import android.webkit.ConsoleMessage;
-import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.webkit.WebViewAssetLoader;
-import androidx.webkit.WebViewFeature;
+import androidx.webkit.WebViewClientCompat;
 import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
+
 import com.appodeal.ads.Appodeal;
 import com.appodeal.ads.BannerCallbacks;
 import com.appodeal.ads.InterstitialCallbacks;
 import com.appodeal.ads.RewardedVideoCallbacks;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String TAG = "UltimateRoadRunner";
+    private static final String TAG = "MainActivity";
     private static final String APP_KEY = "d7441b7444df839562102f3e95a44793d98cd126509b5ce2";
-    WebView webView;
+    private WebView webView;
     private boolean appodealReady = false;
 
     @Override
@@ -31,20 +28,11 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        try {
-            initWebView();
-        } catch (Throwable t) {
-            Log.e(TAG, "WebView init error: " + t);
-            new AlertDialog.Builder(this)
-                .setTitle("WebView Error")
-                .setMessage(t.getClass().getSimpleName() + ": " + t.getMessage())
-                .setPositiveButton("OK", null)
-                .show();
-            return;
-        }
+        initWebView();
 
         new Thread(() -> {
             try {
+                Thread.sleep(2000);
                 runOnUiThread(this::initAppodeal);
             } catch (Throwable t) {
                 Log.e(TAG, "Appodeal thread error: " + t.getMessage());
@@ -58,77 +46,68 @@ public class MainActivity extends AppCompatActivity {
         
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
-        settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
-        settings.setMediaPlaybackRequiresUserGesture(false);
         
-        webView.setLayerType(WebView.LAYER_TYPE_HARDWARE, null);
-        
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
-            WebSettingsCompat.setForceDark(settings, WebSettingsCompat.FORCE_DARK_OFF);
-        }
+        // Force Hardware Acceleration for 3D
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
         final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
 
-        webView.setWebViewClient(new WebViewClient() {
+        webView.setWebViewClient(new WebViewClientCompat() {
             @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
                 return assetLoader.shouldInterceptRequest(request.getUrl());
-            }
-
-            @Override
-            @SuppressWarnings("deprecation")
-            public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
-                return assetLoader.shouldInterceptRequest(Uri.parse(url));
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                Log.d(TAG, "Page loaded: " + url);
+                fireJs("if (window._startAdTimers) window._startAdTimers();");
             }
         });
 
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override
-            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
-                Log.d(TAG, "JS Console: " + consoleMessage.message());
-                return true;
-            }
-        });
-
-        webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
-        
-        // Load using the virtual domain to fix pink assets/WebGL issues
+        // Use virtual domain to fix pink assets
         webView.loadUrl("https://appassets.androidplatform.net/assets/game/index.html");
     }
 
     private void initAppodeal() {
         try {
             Appodeal.setTesting(false);
+            
+            // DISABLE ADMOB AND PANGLE VIA CODE
+            // This satisfies Appodeal's dashboard without causing a crash
+            Appodeal.disableNetwork("admob");
+            Appodeal.disableNetwork("pangle");
+            
             Appodeal.initialize(this, APP_KEY,
                     Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.REWARDED_VIDEO);
+            
             appodealReady = true;
+            setupCallbacks();
+            Log.d(TAG, "Appodeal initialized without AdMob/Pangle");
         } catch (Throwable t) {
             Log.e(TAG, "Appodeal init failed: " + t);
-            return;
         }
+    }
 
+    private void setupCallbacks() {
         try {
             Appodeal.setBannerCallbacks(new BannerCallbacks() {
-                @Override public void onBannerLoaded(int height, boolean isPrecache) {}
-                @Override public void onBannerFailedToLoad() {}
-                @Override public void onBannerShown() {
-                    runOnUiThread(() -> fireJs("window.onBannerAdShown && window.onBannerAdShown()"));
+                @Override public void onBannerLoaded(int height, boolean isPrecache) {
+                    runOnUiThread(() -> fireJs("window.onBannerAdLoaded && window.onBannerAdLoaded()"));
                 }
-                @Override public void onBannerShowFailed() {}
+                @Override public void onBannerFailedToLoad() {
+                    runOnUiThread(() -> fireJs("window.onBannerAdFailed && window.onBannerAdFailed()"));
+                }
+                @Override public void onBannerShown() {}
+                @Override public void onBannerShowFailed() {
+                    runOnUiThread(() -> fireJs("window.onBannerAdFailed && window.onBannerAdFailed()"));
+                }
                 @Override public void onBannerClicked() {}
                 @Override public void onBannerExpired() {}
             });

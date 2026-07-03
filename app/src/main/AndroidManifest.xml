@@ -19,11 +19,6 @@
         android:largeHeap="true"
         android:usesCleartextTraffic="true">
 
-        <!-- Satisfies AdMob/Firebase startup check even when AdMob adapter is excluded -->
-        <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
-
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize"

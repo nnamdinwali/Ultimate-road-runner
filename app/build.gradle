@@ -10,8 +10,8 @@ android {
         applicationId "com.ultimateroadrunner.game"
         minSdk 21
         targetSdk 34
-        versionCode 7
-        versionName "1.6"
+        versionCode 8
+        versionName "1.7"
     }
 
     signingConfigs {
@@ -48,5 +48,9 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.9.0'
-    implementation 'com.appodeal.ads:sdk:3.3.1.0'
+    
+    // Appodeal SDK without AdMob to bypass CMP requirement
+    implementation('com.appodeal.ads:sdk:3.3.1.0') {
+        exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
+    }
 }

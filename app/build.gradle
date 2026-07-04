@@ -10,8 +10,8 @@ android {
         applicationId "com.ultimateroadrunner.game"
         minSdk 21
         targetSdk 34
-        versionCode 10
-        versionName "1.9"
+        versionCode 11
+        versionName "2.0"
     }
 
     signingConfigs {
@@ -50,11 +50,11 @@ dependencies {
     implementation 'androidx.webkit:webkit:1.9.0'
     
     // Appodeal Modular Integration
-    // Only include the networks that are ON in your dashboard
+    // Corrected module names: bigo_ads instead of bigoads
     implementation 'com.appodeal.ads:sdk:3.3.1.0'
     implementation 'com.appodeal.ads.sdk.networks:applovin:3.3.1.0'
     implementation 'com.appodeal.ads.sdk.networks:bidmachine:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:bigoads:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:bigo_ads:3.3.1.0'
     implementation 'com.appodeal.ads.sdk.networks:mintegral:3.3.1.0'
     implementation 'com.appodeal.ads.sdk.networks:vungle:3.3.1.0'
     

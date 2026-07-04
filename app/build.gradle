@@ -10,8 +10,8 @@ android {
         applicationId "com.ultimateroadrunner.game"
         minSdk 21
         targetSdk 34
-        versionCode 9
-        versionName "1.8"
+        versionCode 10
+        versionName "1.9"
     }
 
     signingConfigs {
@@ -49,7 +49,19 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.9.0'
     
-    // Use the full Appodeal SDK but disable AdMob and Pangle via the initialize call instead of stripping libraries
-    // This prevents the "NoClassDefFoundError" crash while still bypassing the CMP requirement
+    // Appodeal Modular Integration
+    // Only include the networks that are ON in your dashboard
     implementation 'com.appodeal.ads:sdk:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:applovin:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:bidmachine:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:bigoads:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:mintegral:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:vungle:3.3.1.0'
+    
+    // Explicitly exclude AdMob and Yandex from the core SDK to be safe
+    configurations.all {
+        exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
+        exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
+        exclude group: 'com.google.android.gms', module: 'play-services-ads'
+    }
 }

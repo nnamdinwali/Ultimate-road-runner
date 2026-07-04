@@ -9,8 +9,6 @@ import android.webkit.WebViewClient;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewClientCompat;
-import androidx.webkit.WebSettingsCompat;
-import androidx.webkit.WebViewFeature;
 
 import com.appodeal.ads.Appodeal;
 import com.appodeal.ads.BannerCallbacks;
@@ -51,7 +49,6 @@ public class MainActivity extends AppCompatActivity {
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         
-        // Force Hardware Acceleration for 3D
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
         final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
@@ -71,7 +68,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Use virtual domain to fix pink assets
         webView.loadUrl("https://appassets.androidplatform.net/assets/game/index.html");
     }
 
@@ -79,17 +75,16 @@ public class MainActivity extends AppCompatActivity {
         try {
             Appodeal.setTesting(false);
             
-            // DISABLE ADMOB AND PANGLE VIA CODE
-            // This satisfies Appodeal's dashboard without causing a crash
+            // MODULAR INTEGRATION: Explicitly disable the networks we don't want
             Appodeal.disableNetwork("admob");
-            Appodeal.disableNetwork("pangle");
+            Appodeal.disableNetwork("yandex");
             
             Appodeal.initialize(this, APP_KEY,
                     Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.REWARDED_VIDEO);
             
             appodealReady = true;
             setupCallbacks();
-            Log.d(TAG, "Appodeal initialized without AdMob/Pangle");
+            Log.d(TAG, "Appodeal initialized with Modular Networks");
         } catch (Throwable t) {
             Log.e(TAG, "Appodeal init failed: " + t);
         }

@@ -15,6 +15,8 @@ import com.appodeal.ads.InterstitialCallbacks;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "URR";
     private static final String APP_KEY = "d7441b7444df839562102f3e95a44793d98cd126509b5ce2";
+    private static final String PRIVACY_POLICY_URL =
+            "https://nnamdinwali.github.io/ultimate-road-runner-privacy/";
     private WebView webView;
     private boolean appodealReady = false;
 
@@ -45,8 +47,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setUseWideViewPort(true);
         webView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
 
-        // FIX 1: Register the bridge with the WebView.
-        // Without this line the game JS cannot reach any ad methods.
+        // Register the bridge so the game JS can call ad and URL methods
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
 
         final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
@@ -63,8 +64,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // FIX 2: The game calls window.showInterstitialAd() directly (not window.AndroidBridge.showInterstitialAd()).
-                // Inject thin wrappers so both calling styles work.
+
+                // Wrapper functions so the game can call window.showInterstitialAd() directly
+                // (GDevelop generates calls without the "AndroidBridge." prefix)
                 fireJs(
                     "window.showInterstitialAd = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
@@ -80,6 +82,37 @@ public class MainActivity extends AppCompatActivity {
                     "};" +
                     "if (typeof window._startAdTimers === 'function') window._startAdTimers();"
                 );
+
+                // Inject a small floating Privacy Policy button in the bottom-left corner.
+                // It sits on top of the game canvas and opens the policy in the device browser.
+                fireJs(
+                    "(function() {" +
+                    "  if (document.getElementById('_pp_btn')) return;" + // don't add twice
+                    "  var btn = document.createElement('a');" +
+                    "  btn.id = '_pp_btn';" +
+                    "  btn.innerText = 'Privacy Policy';" +
+                    "  btn.href = 'javascript:void(0)';" +
+                    "  btn.onclick = function(e) {" +
+                    "    e.preventDefault();" +
+                    "    if (window.AndroidBridge) window.AndroidBridge.openURL('" + PRIVACY_POLICY_URL + "');" +
+                    "  };" +
+                    "  btn.style.cssText = '" +
+                    "    position:fixed;" +
+                    "    bottom:6px;" +
+                    "    left:8px;" +
+                    "    z-index:99999;" +
+                    "    font-size:10px;" +
+                    "    color:rgba(255,255,255,0.55);" +
+                    "    text-decoration:none;" +
+                    "    font-family:sans-serif;" +
+                    "    padding:2px 4px;" +
+                    "    background:rgba(0,0,0,0.25);" +
+                    "    border-radius:3px;" +
+                    "    pointer-events:auto;" +
+                    "  ';" +
+                    "  document.body.appendChild(btn);" +
+                    "})();"
+                );
             }
         });
 
@@ -90,76 +123,65 @@ public class MainActivity extends AppCompatActivity {
         try {
             Appodeal.setTesting(false);
             // Only init the ad types the game actually uses
-            Appodeal.initialize(this, APP_KEY, Appodeal.BANNER | Appodeal.INTERSTITIAL);
-            appodealReady = true;
-            setupCallbacks();
-            // Show banner immediately at bottom of screen — game expects this automatically
-            Appodeal.show(this, Appodeal.BANNER);
-            Log.d(TAG, "Appodeal ready");
+            int adTypes = Appodeal.BANNER | Appodeal.INTERSTITIAL;
+            Appodeal.initialize(this, APP_KEY, adTypes, initialized -> {
+                appodealReady = true;
+                Log.d(TAG, "Appodeal initialized, showing banner");
+                runOnUiThread(() -> {
+                    try {
+                        Appodeal.show(this, Appodeal.BANNER);
+                    } catch (Throwable t) {
+                        Log.e(TAG, "showBanner after init: " + t);
+                    }
+                });
+            });
+
+            Appodeal.setBannerCallbacks(new BannerCallbacks() {
+                public void onBannerLoaded(int h, boolean isPrecache) { Log.d(TAG, "Banner loaded h=" + h); }
+                public void onBannerFailedToLoad() { Log.w(TAG, "Banner failed to load"); }
+                public void onBannerShown() { Log.d(TAG, "Banner shown"); }
+                public void onBannerShowFailed() { Log.w(TAG, "Banner show failed"); }
+                public void onBannerClicked() { Log.d(TAG, "Banner clicked"); }
+                public void onBannerExpired() { Log.d(TAG, "Banner expired"); }
+            });
+
+            Appodeal.setInterstitialCallbacks(new InterstitialCallbacks() {
+                public void onInterstitialLoaded(boolean isPrecache) { Log.d(TAG, "Interstitial loaded"); }
+                public void onInterstitialFailedToLoad() { Log.w(TAG, "Interstitial failed to load"); }
+                public void onInterstitialShown() {
+                    Log.d(TAG, "Interstitial shown");
+                    fireJs("if(window.onInterstitialAdShown) window.onInterstitialAdShown();");
+                }
+                public void onInterstitialShowFailed() {
+                    Log.w(TAG, "Interstitial show failed");
+                    fireJs("if(window.onInterstitialAdFailed) window.onInterstitialAdFailed();");
+                }
+                public void onInterstitialClicked() { Log.d(TAG, "Interstitial clicked"); }
+                public void onInterstitialClosed() {
+                    Log.d(TAG, "Interstitial closed");
+                    fireJs("if(window.onInterstitialAdClosed) window.onInterstitialAdClosed();");
+                }
+                public void onInterstitialExpired() { Log.d(TAG, "Interstitial expired"); }
+            });
+
         } catch (Throwable t) {
-            Log.e(TAG, "Appodeal init failed: " + t);
+            Log.e(TAG, "initAppodeal error: " + t);
         }
     }
-
-    private void setupCallbacks() {
-        Appodeal.setBannerCallbacks(new BannerCallbacks() {
-            @Override public void onBannerLoaded(int height, boolean isPrecache) {
-                Log.d(TAG, "Banner loaded h=" + height);
-                runOnUiThread(() -> fireJs("if(window.onBannerAdLoaded) window.onBannerAdLoaded();"));
-            }
-            @Override public void onBannerFailedToLoad() {
-                Log.d(TAG, "Banner failed to load");
-                runOnUiThread(() -> fireJs("if(window.onBannerAdFailed) window.onBannerAdFailed();"));
-            }
-            @Override public void onBannerShown() { Log.d(TAG, "Banner shown"); }
-            @Override public void onBannerShowFailed() {
-                runOnUiThread(() -> fireJs("if(window.onBannerAdFailed) window.onBannerAdFailed();"));
-            }
-            @Override public void onBannerClicked() {}
-            @Override public void onBannerExpired() {}
-        });
-
-        Appodeal.setInterstitialCallbacks(new InterstitialCallbacks() {
-            @Override public void onInterstitialLoaded(boolean isPrecache) {
-                Log.d(TAG, "Interstitial loaded isPrecache=" + isPrecache);
-            }
-            @Override public void onInterstitialFailedToLoad() {
-                Log.d(TAG, "Interstitial failed to load");
-            }
-            @Override public void onInterstitialShown() { Log.d(TAG, "Interstitial shown"); }
-            @Override public void onInterstitialShowFailed() {
-                runOnUiThread(() -> fireJs("if(window.onInterstitialAdFailed) window.onInterstitialAdFailed();"));
-            }
-            @Override public void onInterstitialClicked() {}
-            @Override public void onInterstitialClosed() {
-                Log.d(TAG, "Interstitial closed");
-                runOnUiThread(() -> fireJs("if(window.onInterstitialAdClosed) window.onInterstitialAdClosed();"));
-            }
-            @Override public void onInterstitialExpired() {}
-        });
-    }
-
-    // --- Methods called by AndroidBridge (via @JavascriptInterface) ---
 
     void showBanner() {
         if (!appodealReady) return;
         runOnUiThread(() -> {
-            try {
-                Appodeal.show(this, Appodeal.BANNER);
-            } catch (Throwable t) {
-                Log.e(TAG, "showBanner: " + t);
-            }
+            try { Appodeal.show(this, Appodeal.BANNER); }
+            catch (Throwable t) { Log.e(TAG, "showBanner: " + t); }
         });
     }
 
     void hideBanner() {
         if (!appodealReady) return;
         runOnUiThread(() -> {
-            try {
-                Appodeal.hide(this, Appodeal.BANNER);
-            } catch (Throwable t) {
-                Log.e(TAG, "hideBanner: " + t);
-            }
+            try { Appodeal.hide(this, Appodeal.BANNER); }
+            catch (Throwable t) { Log.e(TAG, "hideBanner: " + t); }
         });
     }
 

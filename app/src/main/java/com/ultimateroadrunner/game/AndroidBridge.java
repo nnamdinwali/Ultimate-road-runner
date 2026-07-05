@@ -1,12 +1,13 @@
 package com.ultimateroadrunner.game;
 
-import android.content.Intent;
-import android.net.Uri;
 import android.webkit.JavascriptInterface;
 
 /**
  * JavaScript bridge exposed as window.AndroidBridge inside the WebView.
- * The game's index.html already calls these methods — no GDevelop changes needed.
+ * The game's index.html calls these methods — no GDevelop changes needed.
+ *
+ * NOTE: openPrivacyPolicy() takes NO parameter from JS to prevent intent
+ * injection attacks. The destination URL is a hardcoded constant in MainActivity.
  */
 public class AndroidBridge {
 
@@ -36,17 +37,13 @@ public class AndroidBridge {
         activity.showRewardedAd();
     }
 
-    /** Opens any URL in the device's default browser. Used by the in-game Privacy Policy button. */
+    /**
+     * Opens the Privacy Policy page in the device browser.
+     * No URL parameter — the destination is a trusted constant in MainActivity,
+     * not controllable by any JavaScript running in the WebView.
+     */
     @JavascriptInterface
-    public void openURL(String url) {
-        activity.runOnUiThread(() -> {
-            try {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                activity.startActivity(intent);
-            } catch (Exception e) {
-                // If no browser is available, fail silently
-            }
-        });
+    public void openPrivacyPolicy() {
+        activity.openPrivacyPolicy();
     }
 }

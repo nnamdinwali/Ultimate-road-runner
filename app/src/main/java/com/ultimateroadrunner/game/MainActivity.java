@@ -1,5 +1,7 @@
 package com.ultimateroadrunner.game;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.webkit.WebSettings;
@@ -15,8 +17,14 @@ import com.appodeal.ads.InterstitialCallbacks;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "URR";
     private static final String APP_KEY = "d7441b7444df839562102f3e95a44793d98cd126509b5ce2";
+
+    /**
+     * The ONLY URL this app will ever open via the bridge.
+     * Hardcoded here so JS cannot influence the destination.
+     */
     private static final String PRIVACY_POLICY_URL =
             "https://nnamdinwali.github.io/ultimate-road-runner-privacy/";
+
     private WebView webView;
     private boolean appodealReady = false;
 
@@ -47,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setUseWideViewPort(true);
         webView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
 
-        // Register the bridge so the game JS can call ad and URL methods
+        // Register the bridge so the game JS can reach ad and policy methods
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
 
         final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
@@ -65,8 +73,8 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
 
-                // Wrapper functions so the game can call window.showInterstitialAd() directly
-                // (GDevelop generates calls without the "AndroidBridge." prefix)
+                // Wrapper functions: the game calls window.showInterstitialAd() directly
+                // (GDevelop omits the "AndroidBridge." prefix), so we bridge the gap here.
                 fireJs(
                     "window.showInterstitialAd = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
@@ -83,18 +91,20 @@ public class MainActivity extends AppCompatActivity {
                     "if (typeof window._startAdTimers === 'function') window._startAdTimers();"
                 );
 
-                // Inject a small floating Privacy Policy button in the bottom-left corner.
-                // It sits on top of the game canvas and opens the policy in the device browser.
+                // Inject a small floating Privacy Policy link in the bottom-left corner.
+                // Guarded by an ID check so it is never added twice (e.g. on back-navigation).
+                // The onclick calls openPrivacyPolicy() with NO URL argument — the destination
+                // is a trusted constant inside the Java layer, not reachable from JS.
                 fireJs(
                     "(function() {" +
-                    "  if (document.getElementById('_pp_btn')) return;" + // don't add twice
+                    "  if (document.getElementById('_pp_btn')) return;" +
                     "  var btn = document.createElement('a');" +
                     "  btn.id = '_pp_btn';" +
                     "  btn.innerText = 'Privacy Policy';" +
                     "  btn.href = 'javascript:void(0)';" +
                     "  btn.onclick = function(e) {" +
                     "    e.preventDefault();" +
-                    "    if (window.AndroidBridge) window.AndroidBridge.openURL('" + PRIVACY_POLICY_URL + "');" +
+                    "    if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
                     "  };" +
                     "  btn.style.cssText = '" +
                     "    position:fixed;" +
@@ -122,7 +132,6 @@ public class MainActivity extends AppCompatActivity {
     private void initAppodeal() {
         try {
             Appodeal.setTesting(false);
-            // Only init the ad types the game actually uses
             int adTypes = Appodeal.BANNER | Appodeal.INTERSTITIAL;
             Appodeal.initialize(this, APP_KEY, adTypes, initialized -> {
                 appodealReady = true;
@@ -208,6 +217,22 @@ public class MainActivity extends AppCompatActivity {
     void showRewardedAd() {
         // Game doesn't use rewarded — silently fail
         fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
+    }
+
+    /**
+     * Opens the privacy policy page in the device's default browser.
+     * Called by AndroidBridge.openPrivacyPolicy() — no URL comes from JS.
+     */
+    void openPrivacyPolicy() {
+        runOnUiThread(() -> {
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                Log.w(TAG, "Could not open privacy policy: " + e.getMessage());
+            }
+        });
     }
 
     // Safely runs JavaScript on the UI thread

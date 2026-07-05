@@ -1,5 +1,7 @@
 package com.ultimateroadrunner.game;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.webkit.JavascriptInterface;
 
 /**
@@ -32,5 +34,19 @@ public class AndroidBridge {
     @JavascriptInterface
     public void showRewardedAd() {
         activity.showRewardedAd();
+    }
+
+    /** Opens any URL in the device's default browser. Used by the in-game Privacy Policy button. */
+    @JavascriptInterface
+    public void openURL(String url) {
+        activity.runOnUiThread(() -> {
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                activity.startActivity(intent);
+            } catch (Exception e) {
+                // If no browser is available, fail silently
+            }
+        });
     }
 }

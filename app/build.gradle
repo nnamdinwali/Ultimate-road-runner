@@ -1,71 +1,75 @@
 plugins {
-    id 'com.android.application'
-}
-
-android {
-    compileSdk 34
-    namespace 'com.ultimateroadrunner.game'
-
-    defaultConfig {
-        applicationId "com.ultimateroadrunner.game"
-        minSdk 21
-        targetSdk 34
-        versionCode 16
-        versionName "2.5"
+      id 'com.android.application'
     }
 
-    signingConfigs {
-        release {
-            storeFile file(System.getenv("KEYSTORE_PATH") ?: "keystore.jks")
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
-            keyAlias System.getenv("KEY_ALIAS") ?: ""
-            keyPassword System.getenv("KEY_PASSWORD") ?: ""
-        }
-    }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-            shrinkResources false
-            signingConfig signingConfigs.release
-        }
-        debug {
-            applicationIdSuffix ".debug"
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
-    }
-
-    packagingOptions {
-        exclude 'META-INF/LICENSE'
-        exclude 'META-INF/LICENSE.txt'
-    }
-}
-
-dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.webkit:webkit:1.9.0'
-    
-    // Appodeal Core SDK
-    implementation 'com.appodeal.ads:sdk:3.3.1.0'
-    
-    // Modular Adapters (Using verified versions for 3.3.1.0)
-    implementation 'com.appodeal.ads.sdk.networks:appodeal:3.0.2.0'
-    implementation 'com.appodeal.ads.sdk.networks:appodealx:2.7.4.2'
-    implementation 'com.appodeal.ads.sdk.networks:bidon:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:applovin:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:bidmachine:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:bigo_ads:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:mintegral:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:vungle:3.3.1.0'
-    
-    // Strict Exclusion of AdMob and Yandex
+    // Exclude AdMob and its dependencies from ALL configurations (transitive too)
     configurations.all {
-        exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
-        exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
-        exclude group: 'com.google.android.gms', module: 'play-services-ads'
+      exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
+      exclude group: 'com.google.android.gms', module: 'play-services-ads'
+      exclude group: 'com.google.android.gms', module: 'play-services-ads-base'
+      exclude group: 'com.google.android.gms', module: 'play-services-measurement-api'
+      exclude group: 'com.google.android.gms', module: 'play-services-measurement'
+      exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
     }
-}
+
+    android {
+      compileSdk 34
+      namespace 'com.ultimateroadrunner.game'
+
+      defaultConfig {
+          applicationId "com.ultimateroadrunner.game"
+          minSdk 21
+          targetSdk 34
+          versionCode 16
+          versionName "2.5"
+      }
+
+      signingConfigs {
+          release {
+              storeFile file(System.getenv("KEYSTORE_PATH") ?: "keystore.jks")
+              storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
+              keyAlias System.getenv("KEY_ALIAS") ?: ""
+              keyPassword System.getenv("KEY_PASSWORD") ?: ""
+          }
+      }
+
+      buildTypes {
+          release {
+              minifyEnabled false
+              shrinkResources false
+              signingConfig signingConfigs.release
+          }
+          debug {
+              applicationIdSuffix ".debug"
+          }
+      }
+
+      compileOptions {
+          sourceCompatibility JavaVersion.VERSION_11
+          targetCompatibility JavaVersion.VERSION_11
+      }
+
+      packagingOptions {
+          exclude 'META-INF/LICENSE'
+          exclude 'META-INF/LICENSE.txt'
+      }
+    }
+
+    dependencies {
+      implementation 'androidx.appcompat:appcompat:1.6.1'
+      implementation 'androidx.webkit:webkit:1.9.0'
+
+      // Appodeal Full SDK — AdMob excluded via configurations.all above
+      // The full SDK provides the core Appodeal classes (Appodeal, callbacks, etc.)
+      implementation('com.appodeal.ads:sdk:3.3.1.0') {
+          // Belt-and-suspenders: exclude AdMob inline too
+          exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
+          exclude group: 'com.google.android.gms', module: 'play-services-ads'
+          exclude group: 'com.google.android.gms', module: 'play-services-measurement-api'
+          exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
+      }
+      // NOTE: Do NOT add individual network adapters here.
+      // The full SDK already bundles AppLovin, BidMachine, BigoAds, Mintegral, Vungle, etc.
+      // Adding them again causes duplicate class conflicts and crashes on startup.
+    }
+    

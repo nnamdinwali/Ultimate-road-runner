@@ -10,8 +10,8 @@ android {
         applicationId "com.ultimateroadrunner.game"
         minSdk 21
         targetSdk 34
-        versionCode 12
-        versionName "2.1"
+        versionCode 13
+        versionName "2.2"
     }
 
     signingConfigs {
@@ -49,25 +49,6 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.9.0'
     
-    // Appodeal Modular Integration
+    // Use the Full Appodeal SDK (Most reliable for showing ads)
     implementation 'com.appodeal.ads:sdk:3.3.1.0'
-    
-    // Core Mediation & Backfill (Needed for "Ad Server Campaigns" and "Backfill")
-    implementation 'com.appodeal.ads.sdk.networks:appodeal:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:appodealx:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:bidon:3.3.1.0'
-    
-    // Your Active Dashboard Networks
-    implementation 'com.appodeal.ads.sdk.networks:applovin:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:bidmachine:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:bigo_ads:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:mintegral:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:vungle:3.3.1.0'
-    
-    // Explicitly exclude AdMob and Yandex
-    configurations.all {
-        exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
-        exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
-        exclude group: 'com.google.android.gms', module: 'play-services-ads'
-    }
 }

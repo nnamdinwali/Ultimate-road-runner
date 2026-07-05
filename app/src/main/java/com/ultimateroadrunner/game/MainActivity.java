@@ -75,7 +75,9 @@ public class MainActivity extends AppCompatActivity {
         try {
             Appodeal.setTesting(false);
             
-            // MODULAR INTEGRATION: Explicitly disable the networks we don't want
+            // DISABLE NETWORKS VIA CODE
+            // This is the most stable way: the libraries are present (no crash),
+            // but the networks are OFF (no AdMob CMP required).
             Appodeal.disableNetwork("admob");
             Appodeal.disableNetwork("yandex");
             
@@ -84,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
             
             appodealReady = true;
             setupCallbacks();
-            Log.d(TAG, "Appodeal initialized with Modular Networks");
+            Log.d(TAG, "Appodeal initialized: AdMob and Yandex disabled via code");
         } catch (Throwable t) {
             Log.e(TAG, "Appodeal init failed: " + t);
         }

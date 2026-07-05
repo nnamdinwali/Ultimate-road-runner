@@ -10,8 +10,8 @@ android {
         applicationId "com.ultimateroadrunner.game"
         minSdk 21
         targetSdk 34
-        versionCode 15
-        versionName "2.4"
+        versionCode 16
+        versionName "2.5"
     }
 
     signingConfigs {
@@ -52,9 +52,9 @@ dependencies {
     // Appodeal Core SDK
     implementation 'com.appodeal.ads:sdk:3.3.1.0'
     
-    // Modular Adapters (Using specific 3.3.1.0 versions)
-    implementation 'com.appodeal.ads.sdk.networks:appodeal:3.3.1.0'
-    implementation 'com.appodeal.ads.sdk.networks:appodealx:3.3.1.0'
+    // Modular Adapters (Using verified versions for 3.3.1.0)
+    implementation 'com.appodeal.ads.sdk.networks:appodeal:3.0.2.0'
+    implementation 'com.appodeal.ads.sdk.networks:appodealx:2.7.4.2'
     implementation 'com.appodeal.ads.sdk.networks:bidon:3.3.1.0'
     implementation 'com.appodeal.ads.sdk.networks:applovin:3.3.1.0'
     implementation 'com.appodeal.ads.sdk.networks:bidmachine:3.3.1.0'

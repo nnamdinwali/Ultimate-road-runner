@@ -59,17 +59,15 @@ plugins {
       implementation 'androidx.appcompat:appcompat:1.6.1'
       implementation 'androidx.webkit:webkit:1.9.0'
 
-      // Appodeal Full SDK — AdMob excluded via configurations.all above
+      // Appodeal Full SDK - AdMob excluded via configurations.all above
       // The full SDK provides the core Appodeal classes (Appodeal, callbacks, etc.)
+      // Do NOT add individual network adapters - the full SDK already bundles them.
+      // Adding adapters again causes duplicate class conflicts and crashes on startup.
       implementation('com.appodeal.ads:sdk:3.3.1.0') {
-          // Belt-and-suspenders: exclude AdMob inline too
           exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
           exclude group: 'com.google.android.gms', module: 'play-services-ads'
           exclude group: 'com.google.android.gms', module: 'play-services-measurement-api'
           exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
       }
-      // NOTE: Do NOT add individual network adapters here.
-      // The full SDK already bundles AppLovin, BidMachine, BigoAds, Mintegral, Vungle, etc.
-      // Adding them again causes duplicate class conflicts and crashes on startup.
     }
     

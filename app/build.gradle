@@ -10,8 +10,8 @@ android {
         applicationId "com.ultimateroadrunner.game"
         minSdk 21
         targetSdk 34
-        versionCode 14
-        versionName "2.3"
+        versionCode 15
+        versionName "2.4"
     }
 
     signingConfigs {
@@ -49,21 +49,18 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.9.0'
     
-    // Appodeal Modular Integration (v2.3)
-    // Using dynamic versions to ensure the build finds the latest compatible adapters
+    // Appodeal Core SDK
     implementation 'com.appodeal.ads:sdk:3.3.1.0'
     
-    // Core Mediation & Backfill (Mapped to your "Ad Server" and "Backfill" dashboard ON states)
-    implementation 'com.appodeal.ads.sdk.networks:appodeal:3.3.1.+'
-    implementation 'com.appodeal.ads.sdk.networks:appodealx:3.3.1.+'
-    implementation 'com.appodeal.ads.sdk.networks:bidon:3.3.1.+'
-    
-    // Your Active Dashboard Networks (One-by-One)
-    implementation 'com.appodeal.ads.sdk.networks:applovin:3.3.1.+'
-    implementation 'com.appodeal.ads.sdk.networks:bidmachine:3.3.1.+'
-    implementation 'com.appodeal.ads.sdk.networks:bigo_ads:3.3.1.+'
-    implementation 'com.appodeal.ads.sdk.networks:mintegral:3.3.1.+'
-    implementation 'com.appodeal.ads.sdk.networks:vungle:3.3.1.+'
+    // Modular Adapters (Using specific 3.3.1.0 versions)
+    implementation 'com.appodeal.ads.sdk.networks:appodeal:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:appodealx:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:bidon:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:applovin:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:bidmachine:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:bigo_ads:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:mintegral:3.3.1.0'
+    implementation 'com.appodeal.ads.sdk.networks:vungle:3.3.1.0'
     
     // Strict Exclusion of AdMob and Yandex
     configurations.all {

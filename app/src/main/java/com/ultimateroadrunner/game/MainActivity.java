@@ -33,7 +33,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initWebView();
-        // Delay Appodeal init slightly so WebView loads first
         new Thread(() -> {
             try {
                 Thread.sleep(2000);
@@ -55,7 +54,6 @@ public class MainActivity extends AppCompatActivity {
         settings.setUseWideViewPort(true);
         webView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
 
-        // Register the bridge so the game JS can reach ad and policy methods
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
 
         final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
@@ -73,8 +71,7 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
 
-                // Wrapper functions: the game calls window.showInterstitialAd() directly
-                // (GDevelop omits the "AndroidBridge." prefix), so we bridge the gap here.
+                // Wrappers so game JS can call window.showInterstitialAd() without prefix
                 fireJs(
                     "window.showInterstitialAd = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
@@ -91,35 +88,42 @@ public class MainActivity extends AppCompatActivity {
                     "if (typeof window._startAdTimers === 'function') window._startAdTimers();"
                 );
 
-                // Inject a small floating Privacy Policy link in the bottom-left corner.
-                // Guarded by an ID check so it is never added twice (e.g. on back-navigation).
-                // The onclick calls openPrivacyPolicy() with NO URL argument — the destination
-                // is a trusted constant inside the Java layer, not reachable from JS.
+                // Privacy Policy floating button.
+                // Uses touchstart with { capture: true } so it fires BEFORE the game canvas
+                // can absorb the touch event. This is the fix for the button doing nothing.
                 fireJs(
                     "(function() {" +
                     "  if (document.getElementById('_pp_btn')) return;" +
-                    "  var btn = document.createElement('a');" +
+                    "  var btn = document.createElement('div');" +
                     "  btn.id = '_pp_btn';" +
                     "  btn.innerText = 'Privacy Policy';" +
-                    "  btn.href = 'javascript:void(0)';" +
-                    "  btn.onclick = function(e) {" +
-                    "    e.preventDefault();" +
-                    "    if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
-                    "  };" +
                     "  btn.style.cssText = '" +
                     "    position:fixed;" +
                     "    bottom:6px;" +
                     "    left:8px;" +
-                    "    z-index:99999;" +
+                    "    z-index:2147483647;" +
                     "    font-size:10px;" +
-                    "    color:rgba(255,255,255,0.55);" +
-                    "    text-decoration:none;" +
+                    "    color:rgba(255,255,255,0.7);" +
                     "    font-family:sans-serif;" +
-                    "    padding:2px 4px;" +
-                    "    background:rgba(0,0,0,0.25);" +
+                    "    padding:3px 6px;" +
+                    "    background:rgba(0,0,0,0.35);" +
                     "    border-radius:3px;" +
-                    "    pointer-events:auto;" +
+                    "    cursor:pointer;" +
+                    "    -webkit-user-select:none;" +
+                    "    user-select:none;" +
+                    "    touch-action:manipulation;" +
                     "  ';" +
+                    // Use capture phase on touchstart so the game canvas cannot intercept it
+                    "  btn.addEventListener('touchstart', function(e) {" +
+                    "    e.stopImmediatePropagation();" +
+                    "    e.preventDefault();" +
+                    "    if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
+                    "  }, { capture: true, passive: false });" +
+                    // Fallback for non-touch (e.g. emulator mouse clicks)
+                    "  btn.addEventListener('click', function(e) {" +
+                    "    e.stopImmediatePropagation();" +
+                    "    if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
+                    "  }, { capture: true });" +
                     "  document.body.appendChild(btn);" +
                     "})();"
                 );
@@ -215,19 +219,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void showRewardedAd() {
-        // Game doesn't use rewarded — silently fail
         fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
     }
 
     /**
-     * Opens the privacy policy page in the device's default browser.
-     * Called by AndroidBridge.openPrivacyPolicy() — no URL comes from JS.
+     * Opens the privacy policy in the device browser.
+     * No URL comes from JS — destination is this hardcoded constant only.
      */
     void openPrivacyPolicy() {
         runOnUiThread(() -> {
             try {
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL));
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent);
             } catch (Exception e) {
                 Log.w(TAG, "Could not open privacy policy: " + e.getMessage());
@@ -235,7 +237,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // Safely runs JavaScript on the UI thread
     private void fireJs(String js) {
         if (webView == null) return;
         webView.post(() -> webView.evaluateJavascript(js, null));

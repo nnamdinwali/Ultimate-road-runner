@@ -71,59 +71,31 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
 
-                // Wrappers so game JS can call window.showInterstitialAd() without prefix
+                // Ad Bridge Callbacks
                 fireJs(
-                    "window.showInterstitialAd = function() {" +
-                    "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
-                    "};" +
-                    "window.showBanner = function() {" +
-                    "  if (window.AndroidBridge) window.AndroidBridge.showBanner();" +
-                    "};" +
-                    "window.hideBanner = function() {" +
-                    "  if (window.AndroidBridge) window.AndroidBridge.hideBanner();" +
-                    "};" +
-                    "window.showRewardedAd = function() {" +
-                    "  if (window.AndroidBridge) window.AndroidBridge.showRewardedAd();" +
-                    "};" +
-                    "if (typeof window._startAdTimers === 'function') window._startAdTimers();"
+                    "window.onInterstitialAdShown = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'opened'); };" +
+                    "window.onInterstitialAdClosed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'closed'); window._resumeGame(); };" +
+                    "window.onInterstitialAdFailed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'failed'); window._resumeGame(); };" +
+                    "window.onRewardedAdShown = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'opened'); };" +
+                    "window.onRewardedAdClosed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'closed'); window._resumeGame(); };" +
+                    "window.onRewardedAdFailed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'failed'); window._resumeGame(); };"
                 );
 
-                // Privacy Policy floating button.
-                // Uses touchstart with { capture: true } so it fires BEFORE the game canvas
-                // can absorb the touch event. This is the fix for the button doing nothing.
+                // Privacy Policy floating button fix.
                 fireJs(
                     "(function() {" +
-                    "  if (document.getElementById('_pp_btn')) return;" +
-                    "  var btn = document.createElement('div');" +
+                    "  var btn = document.getElementById('_pp_btn');" +
+                    "  if (btn) btn.remove();" +
+                    "  btn = document.createElement('div');" +
                     "  btn.id = '_pp_btn';" +
                     "  btn.innerText = 'Privacy Policy';" +
-                    "  btn.style.cssText = '" +
-                    "    position:fixed;" +
-                    "    bottom:6px;" +
-                    "    left:8px;" +
-                    "    z-index:2147483647;" +
-                    "    font-size:10px;" +
-                    "    color:rgba(255,255,255,0.7);" +
-                    "    font-family:sans-serif;" +
-                    "    padding:3px 6px;" +
-                    "    background:rgba(0,0,0,0.35);" +
-                    "    border-radius:3px;" +
-                    "    cursor:pointer;" +
-                    "    -webkit-user-select:none;" +
-                    "    user-select:none;" +
-                    "    touch-action:manipulation;" +
-                    "  ';" +
-                    // Use capture phase on touchstart so the game canvas cannot intercept it
-                    "  btn.addEventListener('touchstart', function(e) {" +
-                    "    e.stopImmediatePropagation();" +
-                    "    e.preventDefault();" +
+                    "  btn.style.cssText = 'position:fixed; bottom:10px; left:10px; z-index:2147483647; font-size:12px; color:white; background:rgba(0,0,0,0.5); padding:5px 10px; border-radius:5px; cursor:pointer; pointer-events:auto;';" +
+                    "  var handler = function(e) {" +
+                    "    e.preventDefault(); e.stopPropagation();" +
                     "    if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
-                    "  }, { capture: true, passive: false });" +
-                    // Fallback for non-touch (e.g. emulator mouse clicks)
-                    "  btn.addEventListener('click', function(e) {" +
-                    "    e.stopImmediatePropagation();" +
-                    "    if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
-                    "  }, { capture: true });" +
+                    "  };" +
+                    "  btn.addEventListener('click', handler, true);" +
+                    "  btn.addEventListener('touchstart', handler, true);" +
                     "  document.body.appendChild(btn);" +
                     "})();"
                 );

@@ -86,11 +86,11 @@ public class MainActivity extends AppCompatActivity {
                     "  if (window.AndroidBridge) window.AndroidBridge.showRewardedAd();" +
                     "};" +
                     "window.onInterstitialAdShown = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'opened'); };" +
-                    "window.onInterstitialAdClosed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'closed'); if(typeof _resumeGame === 'function') _resumeGame(); };" +
-                    "window.onInterstitialAdFailed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'failed'); if(typeof _resumeGame === 'function') _resumeGame(); };" +
+                    "window.onInterstitialAdClosed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'closed'); if(typeof window._resumeGame === 'function') window._resumeGame(); };" +
+                    "window.onInterstitialAdFailed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'failed'); if(typeof window._resumeGame === 'function') window._resumeGame(); };" +
                     "window.onRewardedAdShown = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'opened'); };" +
-                    "window.onRewardedAdClosed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'closed'); if(typeof _resumeGame === 'function') _resumeGame(); };" +
-                    "window.onRewardedAdFailed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'failed'); if(typeof _resumeGame === 'function') _resumeGame(); };" +
+                    "window.onRewardedAdClosed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'closed'); if(typeof window._resumeGame === 'function') window._resumeGame(); };" +
+                    "window.onRewardedAdFailed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'failed'); if(typeof window._resumeGame === 'function') window._resumeGame(); };" +
                     "if (typeof window._startAdTimers === 'function') window._startAdTimers();"
                 );
 
@@ -121,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
     private void initAppodeal() {
         try {
             Appodeal.setTesting(false);
-            int adTypes = Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.REWARDED_VIDEO;
+            int adTypes = Appodeal.BANNER | Appodeal.INTERSTITIAL;
             Appodeal.initialize(this, APP_KEY, adTypes, initialized -> {
                 appodealReady = true;
                 Log.d(TAG, "Appodeal initialized, showing banner");
@@ -204,23 +204,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void showRewardedAd() {
-        if (!appodealReady) {
-            fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
-            return;
-        }
-        runOnUiThread(() -> {
-            try {
-                if (Appodeal.isLoaded(Appodeal.REWARDED_VIDEO)) {
-                    Appodeal.show(this, Appodeal.REWARDED_VIDEO);
-                } else {
-                    Log.d(TAG, "Rewarded Video not loaded yet");
-                    fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
-                }
-            } catch (Throwable t) {
-                Log.e(TAG, "showRewarded: " + t);
-                fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
-            }
-        });
+        fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
     }
 
     /**

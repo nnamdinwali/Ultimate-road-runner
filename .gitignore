@@ -10,5 +10,5 @@
 local.properties
 *.jks
 *.keystore
-# game/ folder is bundled into game-assets.tar.gz — don't commit raw files
-app/src/main/assets/game/
+# game/ folder is now unzipped for proper WebView loading
+# app/src/main/assets/game/

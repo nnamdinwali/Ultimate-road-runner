@@ -1,0 +1,7 @@
+{
+    "advertisement": {
+        "useBuiltInErrorPopup": true
+    },
+    "sendAnalyticsEvents": true,
+    "showFullLoadinglogo": true
+}

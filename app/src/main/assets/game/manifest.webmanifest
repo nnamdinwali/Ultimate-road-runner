@@ -1,0 +1,15 @@
+{
+  "name": "Ultimate road runner",
+  "short_name": "Ultimate road runner",
+  "id": "com.example.ultimateroadrunner",
+  "description": "",
+  "orientation": "portrait",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "black",
+  "categories": [
+    "games",
+    "entertainment"
+  ],
+  "icons": []
+}

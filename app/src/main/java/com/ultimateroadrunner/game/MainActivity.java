@@ -71,14 +71,27 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
 
-                // Ad Bridge Callbacks
+                // Ad Bridge Callbacks & Wrappers
                 fireJs(
+                    "window.showInterstitialAd = function() {" +
+                    "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
+                    "};" +
+                    "window.showBanner = function() {" +
+                    "  if (window.AndroidBridge) window.AndroidBridge.showBanner();" +
+                    "};" +
+                    "window.hideBanner = function() {" +
+                    "  if (window.AndroidBridge) window.AndroidBridge.hideBanner();" +
+                    "};" +
+                    "window.showRewardedAd = function() {" +
+                    "  if (window.AndroidBridge) window.AndroidBridge.showRewardedAd();" +
+                    "};" +
                     "window.onInterstitialAdShown = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'opened'); };" +
                     "window.onInterstitialAdClosed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'closed'); window._resumeGame(); };" +
                     "window.onInterstitialAdFailed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'failed'); window._resumeGame(); };" +
                     "window.onRewardedAdShown = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'opened'); };" +
                     "window.onRewardedAdClosed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'closed'); window._resumeGame(); };" +
-                    "window.onRewardedAdFailed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'failed'); window._resumeGame(); };"
+                    "window.onRewardedAdFailed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'failed'); window._resumeGame(); };" +
+                    "if (typeof window._startAdTimers === 'function') window._startAdTimers();"
                 );
 
                 // Privacy Policy floating button fix.

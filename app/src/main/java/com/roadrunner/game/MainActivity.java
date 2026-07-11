@@ -228,6 +228,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        // Without this, the WebView keeps running its JS/animation clock in the
+        // background whenever an interstitial (a separate Activity) opens, or the
+        // screen/notification shade briefly covers the app. When control returns,
+        // the game's delta-time logic sees a huge elapsed gap and fast-forwards
+        // to catch up - this is what looked like "pauses then speeds up".
+        if (webView != null) webView.onPause();
+        try { Appodeal.onPause(this); } catch (Throwable t) { Log.w(TAG, "Appodeal.onPause: " + t); }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (webView != null) webView.onResume();
+        try { Appodeal.onResume(this, Appodeal.BANNER); } catch (Throwable t) { Log.w(TAG, "Appodeal.onResume: " + t); }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (webView != null) webView.destroy();

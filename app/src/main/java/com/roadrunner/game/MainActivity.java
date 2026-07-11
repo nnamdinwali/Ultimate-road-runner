@@ -236,14 +236,15 @@ public class MainActivity extends AppCompatActivity {
         // the game's delta-time logic sees a huge elapsed gap and fast-forwards
         // to catch up - this is what looked like "pauses then speeds up".
         if (webView != null) webView.onPause();
-        try { Appodeal.onPause(this); } catch (Throwable t) { Log.w(TAG, "Appodeal.onPause: " + t); }
+        // Note: this Appodeal SDK build (3.3.1.0) does not expose static
+        // onPause/onResume lifecycle methods - only webView.onPause()/onResume()
+        // are needed to stop the JS/animation clock while backgrounded.
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (webView != null) webView.onResume();
-        try { Appodeal.onResume(this, Appodeal.BANNER); } catch (Throwable t) { Log.w(TAG, "Appodeal.onResume: " + t); }
     }
 
     @Override

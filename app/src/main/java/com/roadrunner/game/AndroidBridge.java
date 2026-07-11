@@ -1,4 +1,4 @@
-package com.ultimateroadrunner.game;
+package com.roadrunner.game;
 
 import android.webkit.JavascriptInterface;
 

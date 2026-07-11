@@ -14,5 +14,5 @@ dependencyResolutionManagement {
         maven { url 'https://artifact.bytedance.com/repository/pangle' }
     }
 }
-rootProject.name = "UltimateRoadRunner"
+rootProject.name = "RoadRunner"
 include ':app'

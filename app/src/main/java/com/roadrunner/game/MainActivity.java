@@ -16,7 +16,7 @@ import com.appodeal.ads.InterstitialCallbacks;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "URR";
-    private static final String APP_KEY = "d7441b7444df839562102f3e95a44793d98cd126509b5ce2";
+    private static final String APP_KEY = "784f1feaa9b08dbfa4a8177fd8274436ec8f04f4f9eb9322";
 
     /**
      * The ONLY URL this app will ever open via the bridge.

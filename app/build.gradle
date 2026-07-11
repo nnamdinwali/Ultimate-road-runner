@@ -2,13 +2,13 @@ plugins {
       id 'com.android.application'
     }
 
-    // Exclude AdMob and its dependencies from ALL configurations (transitive too)
+    // Exclude only the AdMob / Yandex mediation ADAPTERS (these need their own
+    // network accounts + extra setup). Do NOT exclude the underlying Google
+    // Play Services ads/measurement libraries below this line — Appodeal's own
+    // CMP (consent screen) depends on those, and excluding them silently
+    // breaks the CMP popup even though AdMob/Yandex themselves stay disabled.
     configurations.all {
       exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
-      exclude group: 'com.google.android.gms', module: 'play-services-ads'
-      exclude group: 'com.google.android.gms', module: 'play-services-ads-base'
-      exclude group: 'com.google.android.gms', module: 'play-services-measurement-api'
-      exclude group: 'com.google.android.gms', module: 'play-services-measurement'
       exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
     }
 
@@ -59,14 +59,14 @@ plugins {
       implementation 'androidx.appcompat:appcompat:1.6.1'
       implementation 'androidx.webkit:webkit:1.9.0'
 
-      // Appodeal Full SDK - AdMob excluded via configurations.all above AND inline below.
+      // Appodeal Full SDK - AdMob/Yandex adapters excluded via configurations.all above AND inline below.
       // The full SDK provides all core classes (Appodeal, callbacks, etc.)
       // Do NOT add individual network adapters separately - they are already inside the
       // full SDK bundle. Adding them again causes duplicate class conflicts and crashes.
+      // NOTE: Google Play Services ads/measurement libs are intentionally NOT excluded here -
+      // Appodeal's CMP (consent screen) needs them even with AdMob/Yandex adapters excluded.
       implementation('com.appodeal.ads:sdk:3.3.1.0') {
           exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
-          exclude group: 'com.google.android.gms', module: 'play-services-ads'
-          exclude group: 'com.google.android.gms', module: 'play-services-measurement-api'
           exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
       }
     }

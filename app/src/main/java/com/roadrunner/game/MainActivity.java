@@ -235,15 +235,11 @@ public class MainActivity extends AppCompatActivity {
         // screen/notification shade briefly covers the app. When control returns,
         // the game's delta-time logic sees a huge elapsed gap and fast-forwards
         // to catch up - this is what looked like "pauses then speeds up".
-        if (webView != null) {
-            webView.onPause();
-            // onPause() alone does not reliably stop rAF/timers before Android
-            // freezes the JS thread - pauseTimers() forces the WebView's internal
-            // JS timer/animation clock to actually halt now, so no stale elapsed
-            // time builds up while backgrounded. This is the missing half of the
-            // fix; onPause()/onResume() were not wrong, just incomplete.
-            webView.pauseTimers();
-        }
+        // NOTE: deliberately NOT calling webView.pauseTimers() here. It pauses
+        // JS timers for every WebView in the process, not just this one, which
+        // froze Appodeal's own WebView-based interstitial rendering (ads failed
+        // to appear, death screen hung waiting on a callback that never fired).
+        if (webView != null) webView.onPause();
         // Note: this Appodeal SDK build (3.3.1.0) does not expose static
         // onPause/onResume lifecycle methods - only webView.onPause()/onResume()
         // are needed to stop the JS/animation clock while backgrounded.
@@ -252,10 +248,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (webView != null) {
-            webView.resumeTimers();
-            webView.onResume();
-        }
+        if (webView != null) webView.onResume();
     }
 
     @Override

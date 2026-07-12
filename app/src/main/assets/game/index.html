@@ -46,12 +46,23 @@
             return false;
         }
 
+        /* Safety net: an ad pause must always be matched by a resume. If the
+           native side (Appodeal or a misbehaving mediated network) never
+           calls back — bad adapter, dropped callback, edge-case timing —
+           the game must not stay stuck on a frozen/muted screen forever. */
+        var _pauseWatchdog = null;
         function _pauseGame() {
             if (window._gmGame) try { window._gmGame.pause(true); } catch(e) {}
             try { if (typeof Howler !== 'undefined') Howler.mute(true); } catch(e) {}
             if (window._gmBgm) window._gmBgm.pause();
+            if (_pauseWatchdog) clearTimeout(_pauseWatchdog);
+            _pauseWatchdog = setTimeout(function() {
+                console.warn('[watchdog] No ad resume callback after 10s - force resuming game');
+                _resumeGame();
+            }, 10000);
         }
         function _resumeGame() {
+            if (_pauseWatchdog) { clearTimeout(_pauseWatchdog); _pauseWatchdog = null; }
             if (window._gmGame) try { window._gmGame.pause(false); } catch(e) {}
             try { if (typeof Howler !== 'undefined') Howler.mute(false); } catch(e) {}
             if (window._gmBgm && window._gmBgmStarted && window._gmAudioEnabled !== false) {

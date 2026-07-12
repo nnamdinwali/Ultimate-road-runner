@@ -54,19 +54,12 @@
            game hostage to third-party ad SDK callbacks that can be
            delayed, dropped, or never fire at all. */
         function _pauseGame() {
-            if (window._gmGame) try { window._gmGame.pause(true); } catch(e) {}
-            try { if (typeof Howler !== 'undefined') Howler.mute(true); } catch(e) {}
-            if (window._gmBgm) window._gmBgm.pause();
+            // No longer halts the engine - see _muteForAd/_unmuteAfterAd below.
+            // Kept as a mute-only alias so any remaining caller is harmless.
+            _muteForAd();
         }
         function _resumeGame() {
-            if (window._gmGame) try { window._gmGame.pause(false); } catch(e) {}
-            try { if (typeof Howler !== 'undefined') Howler.mute(false); } catch(e) {}
-            if (window._gmBgm && window._gmBgmStarted && window._gmAudioEnabled !== false) {
-                setTimeout(function() {
-                    if (!window._gmBgm || !window._gmBgm.paused) return;
-                    window._gmBgm.play().catch(function() {});
-                }, 100);
-            }
+            _unmuteAfterAd();
         }
 
         /* Ad-only audio ducking — mutes game sound while an ad plays, but
@@ -172,8 +165,13 @@
         };
 
         document.addEventListener('visibilitychange', function() {
-            if (document.hidden) { _pauseGame(); }
-            else { _resumeGame(); }
+            // Mute-only, same as ads. The engine loop must never be halted by
+            // anything - not an ad, not backgrounding, nothing - because any
+            // halt is hostage to something else (native lifecycle, ad SDK
+            // callback) reliably resuming it, and that's exactly what caused
+            // the freeze-on-death bug.
+            if (document.hidden) { _muteForAd(); }
+            else { _unmuteAfterAd(); }
         });
 
     </script>

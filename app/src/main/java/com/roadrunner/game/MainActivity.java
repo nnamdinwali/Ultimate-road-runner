@@ -28,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private boolean appodealReady = false;
+    private volatile boolean mrecPending = false; // set when showMREC() is called before fill is ready
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -160,11 +161,28 @@ public class MainActivity extends AppCompatActivity {
             });
 
             Appodeal.setMrecCallbacks(new MrecCallbacks() {
-                public void onMrecLoaded(boolean isPrecache) { Log.d(TAG, "MREC loaded isPrecache=" + isPrecache); }
-                public void onMrecFailedToLoad()  { Log.w(TAG, "MREC failed to load"); }
+                public void onMrecLoaded(boolean isPrecache) {
+                    Log.d(TAG, "MREC loaded isPrecache=" + isPrecache);
+                    // If showMREC() was called before the fill arrived, show it now.
+                    if (mrecPending) {
+                        mrecPending = false;
+                        runOnUiThread(() -> {
+                            try {
+                                boolean ok = Appodeal.show(MainActivity.this, Appodeal.MREC);
+                                Log.d(TAG, "MREC deferred show: " + ok);
+                            } catch (Throwable t) { Log.e(TAG, "MREC deferred show error: " + t); }
+                        });
+                    }
+                }
+                public void onMrecFailedToLoad()  {
+                    Log.w(TAG, "MREC failed to load — retrying cache");
+                    try { Appodeal.cache(MainActivity.this, Appodeal.MREC); } catch (Throwable t) {}
+                }
                 public void onMrecShown()         {
                     Log.d(TAG, "MREC shown");
                     fireJs("if(typeof window.onMRECAdShown === 'function') window.onMRECAdShown();");
+                    // Re-cache immediately so the next death already has a fill waiting.
+                    try { Appodeal.cache(MainActivity.this, Appodeal.MREC); } catch (Throwable t) {}
                 }
                 public void onMrecShowFailed()    { Log.w(TAG, "MREC show failed"); }
                 public void onMrecClicked()       { Log.d(TAG, "MREC clicked"); }
@@ -207,16 +225,25 @@ public class MainActivity extends AppCompatActivity {
         if (!appodealReady) return;
         runOnUiThread(() -> {
             try {
-                // MREC shows centered on screen — Appodeal manages its own view overlay.
-                // It only appears after the interstitial has already closed, so it never
-                // conflicts with the fullscreen ad. hideMREC() is called the moment the
-                // player taps Retry (hooked via replaceScene in index.html).
-                Appodeal.show(this, Appodeal.MREC);
+                if (Appodeal.isLoaded(Appodeal.MREC)) {
+                    // Fill is ready — show immediately and log the result.
+                    // Appodeal centres the 300x250 view on screen automatically.
+                    boolean ok = Appodeal.show(this, Appodeal.MREC);
+                    Log.d(TAG, "showMREC immediate: " + ok);
+                    mrecPending = false;
+                } else {
+                    // Fill not yet arrived — flag it and re-cache.
+                    // onMrecLoaded will call show() as soon as the fill is ready.
+                    Log.d(TAG, "MREC not loaded yet — flagging pending and caching");
+                    mrecPending = true;
+                    Appodeal.cache(this, Appodeal.MREC);
+                }
             } catch (Throwable t) { Log.e(TAG, "showMREC: " + t); }
         });
     }
 
     void hideMREC() {
+        mrecPending = false; // cancel any pending show if player retried before fill arrived
         runOnUiThread(() -> {
             try {
                 if (appodealReady) Appodeal.hide(this, Appodeal.MREC);

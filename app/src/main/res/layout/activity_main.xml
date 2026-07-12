@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -11,10 +10,9 @@
 
     <!--
         MREC (300x250) ad container.
-        Appodeal.show(activity, Appodeal.MREC) is only effective when an
-        AppodealView with adType="mrec" exists in the view hierarchy.
-        Without this view every show() call is a silent no-op.
-        Centred horizontally, sits 60dp above the bottom banner strip.
+        Appodeal pairs this view with MREC at runtime via Appodeal.show(activity, Appodeal.MREC).
+        adType is NOT an XML attribute in Appodeal 3.3.1 — type pairing is done in Java only.
+        Hidden by default; shown after each interstitial closes, hidden on Retry.
     -->
     <com.appodeal.ads.AppodealView
         android:id="@+id/mrecView"
@@ -22,8 +20,7 @@
         android:layout_height="250dp"
         android:layout_gravity="center_horizontal|bottom"
         android:layout_marginBottom="60dp"
-        android:visibility="gone"
-        app:adType="mrec" />
+        android:visibility="gone" />
 
 </FrameLayout>
 

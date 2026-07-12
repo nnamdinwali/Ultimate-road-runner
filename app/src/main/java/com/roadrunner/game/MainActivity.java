@@ -131,6 +131,15 @@ public class MainActivity extends AppCompatActivity {
                     } catch (Throwable t) {
                         Log.e(TAG, "showBanner after init: " + t);
                     }
+                    // Preload the interstitial immediately so it's already sitting
+                    // in memory before the player ever dies - same pattern the old
+                    // build used with AdMob (load once at start, reload after every
+                    // show/close/fail so there's never a wait at show-time).
+                    try {
+                        Appodeal.cache(this, Appodeal.INTERSTITIAL);
+                    } catch (Throwable t) {
+                        Log.e(TAG, "precache interstitial: " + t);
+                    }
                 });
             });
 
@@ -145,7 +154,10 @@ public class MainActivity extends AppCompatActivity {
 
             Appodeal.setInterstitialCallbacks(new InterstitialCallbacks() {
                 public void onInterstitialLoaded(boolean isPrecache) { Log.d(TAG, "Interstitial loaded"); }
-                public void onInterstitialFailedToLoad() { Log.w(TAG, "Interstitial failed to load"); }
+                public void onInterstitialFailedToLoad() {
+                    Log.w(TAG, "Interstitial failed to load");
+                    try { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); } catch (Throwable t) {}
+                }
                 public void onInterstitialShown() {
                     Log.d(TAG, "Interstitial shown");
                     fireJs("if(window.onInterstitialAdShown) window.onInterstitialAdShown();");
@@ -153,11 +165,13 @@ public class MainActivity extends AppCompatActivity {
                 public void onInterstitialShowFailed() {
                     Log.w(TAG, "Interstitial show failed");
                     fireJs("if(window.onInterstitialAdFailed) window.onInterstitialAdFailed();");
+                    try { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); } catch (Throwable t) {}
                 }
                 public void onInterstitialClicked() { Log.d(TAG, "Interstitial clicked"); }
                 public void onInterstitialClosed() {
                     Log.d(TAG, "Interstitial closed");
                     fireJs("if(window.onInterstitialAdClosed) window.onInterstitialAdClosed();");
+                    try { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); } catch (Throwable t) {}
                 }
                 public void onInterstitialExpired() { Log.d(TAG, "Interstitial expired"); }
             });
@@ -230,25 +244,18 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        // Without this, the WebView keeps running its JS/animation clock in the
-        // background whenever an interstitial (a separate Activity) opens, or the
-        // screen/notification shade briefly covers the app. When control returns,
-        // the game's delta-time logic sees a huge elapsed gap and fast-forwards
-        // to catch up - this is what looked like "pauses then speeds up".
-        // NOTE: deliberately NOT calling webView.pauseTimers() here. It pauses
-        // JS timers for every WebView in the process, not just this one, which
-        // froze Appodeal's own WebView-based interstitial rendering (ads failed
-        // to appear, death screen hung waiting on a callback that never fired).
-        if (webView != null) webView.onPause();
-        // Note: this Appodeal SDK build (3.3.1.0) does not expose static
-        // onPause/onResume lifecycle methods - only webView.onPause()/onResume()
-        // are needed to stop the JS/animation clock while backgrounded.
+        // Deliberately NOT calling webView.onPause() here. That call froze the
+        // WebView's JS/animation clock any time ANY Activity briefly covered
+        // this one (including Appodeal's own interstitial Activity), and the
+        // clock only resumed on the next onResume - which is exactly what
+        // produced the "game freezes on death" bug. The game must never be
+        // pausable by an Activity transition or an ad SDK callback again.
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (webView != null) webView.onResume();
+        // No webView.onResume() call needed since we never pause it above.
     }
 
     @Override

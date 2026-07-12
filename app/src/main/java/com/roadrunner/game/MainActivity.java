@@ -71,7 +71,15 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
 
-                // Ad Bridge Callbacks & Wrappers
+                // Inject thin pass-through stubs so any legacy GDevelop event that
+                // calls window.showInterstitialAd() / showBanner() / etc. directly
+                // still reaches AndroidBridge. The actual ad lifecycle callbacks
+                // (onInterstitialAdClosed, onInterstitialAdFailed, etc.) are defined
+                // in index.html and must NOT be overridden here — they correctly wire
+                // to _adEmitter and _unmuteAfterAd() without ever pausing the engine.
+                // _startAdTimers() is also called by index.html's body script and must
+                // NOT be called again here (double-call = double death listeners = two
+                // ads per death).
                 fireJs(
                     "window.showInterstitialAd = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
@@ -84,17 +92,10 @@ public class MainActivity extends AppCompatActivity {
                     "};" +
                     "window.showRewardedAd = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.showRewardedAd();" +
-                    "};" +
-                    "window.onInterstitialAdShown = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'opened'); };" +
-                    "window.onInterstitialAdClosed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'closed'); if(typeof window._resumeGame === 'function') window._resumeGame(); };" +
-                    "window.onInterstitialAdFailed = function() { window.bridge.advertisement.emit('interstitial_state_changed', 'failed'); if(typeof window._resumeGame === 'function') window._resumeGame(); };" +
-                    "window.onRewardedAdShown = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'opened'); };" +
-                    "window.onRewardedAdClosed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'closed'); if(typeof window._resumeGame === 'function') window._resumeGame(); };" +
-                    "window.onRewardedAdFailed = function() { window.bridge.advertisement.emit('rewarded_state_changed', 'failed'); if(typeof window._resumeGame === 'function') window._resumeGame(); };" +
-                    "if (typeof window._startAdTimers === 'function') window._startAdTimers();"
+                    "};"
                 );
 
-                // Privacy Policy floating button fix.
+                // Privacy Policy floating button.
                 fireJs(
                     "(function() {" +
                     "  var btn = document.getElementById('_pp_btn');" +
@@ -160,17 +161,19 @@ public class MainActivity extends AppCompatActivity {
                 }
                 public void onInterstitialShown() {
                     Log.d(TAG, "Interstitial shown");
-                    fireJs("if(window.onInterstitialAdShown) window.onInterstitialAdShown();");
+                    // index.html does not define onInterstitialAdShown — nothing to call.
                 }
                 public void onInterstitialShowFailed() {
                     Log.w(TAG, "Interstitial show failed");
-                    fireJs("if(window.onInterstitialAdFailed) window.onInterstitialAdFailed();");
+                    // index.html's onInterstitialAdFailed calls _unmuteAfterAd() + emits event.
+                    fireJs("if(typeof window.onInterstitialAdFailed === 'function') window.onInterstitialAdFailed();");
                     try { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); } catch (Throwable t) {}
                 }
                 public void onInterstitialClicked() { Log.d(TAG, "Interstitial clicked"); }
                 public void onInterstitialClosed() {
                     Log.d(TAG, "Interstitial closed");
-                    fireJs("if(window.onInterstitialAdClosed) window.onInterstitialAdClosed();");
+                    // index.html's onInterstitialAdClosed calls _unmuteAfterAd() + emits event.
+                    fireJs("if(typeof window.onInterstitialAdClosed === 'function') window.onInterstitialAdClosed();");
                     try { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); } catch (Throwable t) {}
                 }
                 public void onInterstitialExpired() { Log.d(TAG, "Interstitial expired"); }
@@ -199,7 +202,7 @@ public class MainActivity extends AppCompatActivity {
 
     void showInterstitialAd() {
         if (!appodealReady) {
-            fireJs("if(window.onInterstitialAdFailed) window.onInterstitialAdFailed();");
+            fireJs("if(typeof window.onInterstitialAdFailed === 'function') window.onInterstitialAdFailed();");
             return;
         }
         runOnUiThread(() -> {
@@ -208,17 +211,17 @@ public class MainActivity extends AppCompatActivity {
                     Appodeal.show(this, Appodeal.INTERSTITIAL);
                 } else {
                     Log.d(TAG, "Interstitial not loaded yet");
-                    fireJs("if(window.onInterstitialAdFailed) window.onInterstitialAdFailed();");
+                    fireJs("if(typeof window.onInterstitialAdFailed === 'function') window.onInterstitialAdFailed();");
                 }
             } catch (Throwable t) {
                 Log.e(TAG, "showInterstitial: " + t);
-                fireJs("if(window.onInterstitialAdFailed) window.onInterstitialAdFailed();");
+                fireJs("if(typeof window.onInterstitialAdFailed === 'function') window.onInterstitialAdFailed();");
             }
         });
     }
 
     void showRewardedAd() {
-        fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
+        fireJs("if(typeof window.onRewardedAdFailed === 'function') window.onRewardedAdFailed();");
     }
 
     /**
@@ -247,7 +250,7 @@ public class MainActivity extends AppCompatActivity {
         // Deliberately NOT calling webView.onPause() here. That call froze the
         // WebView's JS/animation clock any time ANY Activity briefly covered
         // this one (including Appodeal's own interstitial Activity), and the
-        // clock only resumed on the next onResume - which is exactly what
+        // clock only resumed on the next onResume — which is exactly what
         // produced the "game freezes on death" bug. The game must never be
         // pausable by an Activity transition or an ad SDK callback again.
     }

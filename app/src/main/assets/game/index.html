@@ -82,9 +82,11 @@
 
         /* Native → JS callbacks (called by Kotlin via evaluateJavascript) */
         window.onInterstitialAdLoaded   = function() { _adEmitter.emit('interstitial_state_changed', 'loaded'); };
+        window.onInterstitialAdShown    = function() { _adEmitter.emit('interstitial_state_changed', 'opened'); };
         window.onInterstitialAdClosed   = function() { _unmuteAfterAd(); _adEmitter.emit('interstitial_state_changed', 'closed'); };
         window.onInterstitialAdFailed   = function() { _unmuteAfterAd(); _adEmitter.emit('interstitial_state_changed', 'failed'); };
         window.onRewardedAdLoaded       = function() { _adEmitter.emit('rewarded_state_changed', 'loaded'); };
+        window.onRewardedAdShown        = function() { _adEmitter.emit('rewarded_state_changed', 'opened'); };
         window.onRewardedAdRewarded     = function() { _adEmitter.emit('rewarded_state_changed', 'rewarded'); };
         window.onRewardedAdClosed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'closed'); };
         window.onRewardedAdFailed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'failed'); };

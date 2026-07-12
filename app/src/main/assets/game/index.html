@@ -46,24 +46,38 @@
             return false;
         }
 
-        /* Safety net: an ad pause must always be matched by a resume. If the
-           native side (Appodeal or a misbehaving mediated network) never
-           calls back — bad adapter, dropped callback, edge-case timing —
-           the game must not stay stuck on a frozen/muted screen forever. */
-        var _pauseWatchdog = null;
+        /* _pauseGame/_resumeGame fully halt the game engine loop. They are
+           reserved for real app backgrounding (visibilitychange) — never
+           for ads. Ads must NEVER be able to freeze the game: the player
+           is already dead/between actions when an ad fires, there is
+           nothing to protect by halting the engine, and doing so made the
+           game hostage to third-party ad SDK callbacks that can be
+           delayed, dropped, or never fire at all. */
         function _pauseGame() {
             if (window._gmGame) try { window._gmGame.pause(true); } catch(e) {}
             try { if (typeof Howler !== 'undefined') Howler.mute(true); } catch(e) {}
             if (window._gmBgm) window._gmBgm.pause();
-            if (_pauseWatchdog) clearTimeout(_pauseWatchdog);
-            _pauseWatchdog = setTimeout(function() {
-                console.warn('[watchdog] No ad resume callback after 10s - force resuming game');
-                _resumeGame();
-            }, 10000);
         }
         function _resumeGame() {
-            if (_pauseWatchdog) { clearTimeout(_pauseWatchdog); _pauseWatchdog = null; }
             if (window._gmGame) try { window._gmGame.pause(false); } catch(e) {}
+            try { if (typeof Howler !== 'undefined') Howler.mute(false); } catch(e) {}
+            if (window._gmBgm && window._gmBgmStarted && window._gmAudioEnabled !== false) {
+                setTimeout(function() {
+                    if (!window._gmBgm || !window._gmBgm.paused) return;
+                    window._gmBgm.play().catch(function() {});
+                }, 100);
+            }
+        }
+
+        /* Ad-only audio ducking — mutes game sound while an ad plays, but
+           deliberately never touches window._gmGame.pause(). The game
+           engine/UI (Retry button, tweens, timers) keeps running no matter
+           what the ad SDK does or how long it takes to call back. */
+        function _muteForAd() {
+            try { if (typeof Howler !== 'undefined') Howler.mute(true); } catch(e) {}
+            if (window._gmBgm) window._gmBgm.pause();
+        }
+        function _unmuteAfterAd() {
             try { if (typeof Howler !== 'undefined') Howler.mute(false); } catch(e) {}
             if (window._gmBgm && window._gmBgmStarted && window._gmAudioEnabled !== false) {
                 setTimeout(function() {
@@ -75,12 +89,12 @@
 
         /* Native → JS callbacks (called by Kotlin via evaluateJavascript) */
         window.onInterstitialAdLoaded   = function() { _adEmitter.emit('interstitial_state_changed', 'loaded'); };
-        window.onInterstitialAdClosed   = function() { _resumeGame(); _adEmitter.emit('interstitial_state_changed', 'closed'); };
-        window.onInterstitialAdFailed   = function() { _resumeGame(); _adEmitter.emit('interstitial_state_changed', 'failed'); };
+        window.onInterstitialAdClosed   = function() { _unmuteAfterAd(); _adEmitter.emit('interstitial_state_changed', 'closed'); };
+        window.onInterstitialAdFailed   = function() { _unmuteAfterAd(); _adEmitter.emit('interstitial_state_changed', 'failed'); };
         window.onRewardedAdLoaded       = function() { _adEmitter.emit('rewarded_state_changed', 'loaded'); };
         window.onRewardedAdRewarded     = function() { _adEmitter.emit('rewarded_state_changed', 'rewarded'); };
-        window.onRewardedAdClosed       = function() { _resumeGame(); _adEmitter.emit('rewarded_state_changed', 'closed'); };
-        window.onRewardedAdFailed       = function() { _resumeGame(); _adEmitter.emit('rewarded_state_changed', 'failed'); };
+        window.onRewardedAdClosed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'closed'); };
+        window.onRewardedAdFailed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'failed'); };
         window.onBannerAdShown          = function() { _adEmitter.emit('banner_state_changed', 'shown'); };
         window.onBannerAdHidden         = function() { _adEmitter.emit('banner_state_changed', 'hidden'); };
 
@@ -93,13 +107,13 @@
                 on: function(event, cb) { _adEmitter.on(event, cb); },
                 setMinimumDelayBetweenInterstitial: function() {},
                 showInterstitial: function() {
-                    _pauseGame();
+                    _muteForAd();
                     if (!_callNative('showInterstitialAd')) { window.onInterstitialAdFailed(); }
                 },
                 showBanner: function() { _callNative('showBanner'); },
                 hideBanner: function() { _callNative('hideBanner'); },
                 showRewarded: function() {
-                    _pauseGame();
+                    _muteForAd();
                     if (!_callNative('showRewardedAd')) { window.onRewardedAdFailed(); }
                 }
             },

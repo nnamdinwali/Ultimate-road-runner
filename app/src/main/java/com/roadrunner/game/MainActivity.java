@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.appcompat.app.AppCompatActivity;
@@ -11,6 +12,7 @@ import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewClientCompat;
 
 import com.appodeal.ads.Appodeal;
+import com.appodeal.ads.AppodealView;
 import com.appodeal.ads.BannerCallbacks;
 import com.appodeal.ads.InterstitialCallbacks;
 import com.appodeal.ads.MrecCallbacks;
@@ -27,13 +29,14 @@ public class MainActivity extends AppCompatActivity {
             "https://nnamdinwali.github.io/ultimate-road-runner-privacy/";
 
     private WebView webView;
+    private AppodealView mrecView;
     private boolean appodealReady = false;
-    private volatile boolean mrecPending = false; // set when showMREC() is called before fill is ready
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mrecView = findViewById(R.id.mrecView);
         initWebView();
         new Thread(() -> {
             try {
@@ -77,11 +80,7 @@ public class MainActivity extends AppCompatActivity {
                 // calls window.showInterstitialAd() / showBanner() / etc. directly
                 // still reaches AndroidBridge. The actual ad lifecycle callbacks
                 // (onInterstitialAdClosed, onInterstitialAdFailed, etc.) are defined
-                // in index.html and must NOT be overridden here — they correctly wire
-                // to _adEmitter and _unmuteAfterAd() without ever pausing the engine.
-                // _startAdTimers() is also called by index.html's body script and must
-                // NOT be called again here (double-call = double death listeners = two
-                // ads per death).
+                // in index.html and must NOT be overridden here.
                 fireJs(
                     "window.showInterstitialAd = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
@@ -92,207 +91,126 @@ public class MainActivity extends AppCompatActivity {
                     "window.hideBanner = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.hideBanner();" +
                     "};" +
-                    "window.showRewardedAd = function() {" +
-                    "  if (window.AndroidBridge) window.AndroidBridge.showRewardedAd();" +
+                    "window.showMREC = function() {" +
+                    "  if (window.AndroidBridge) window.AndroidBridge.showMREC();" +
+                    "};" +
+                    "window.hideMREC = function() {" +
+                    "  if (window.AndroidBridge) window.AndroidBridge.hideMREC();" +
+                    "};" +
+                    "window.openPrivacyPolicy = function() {" +
+                    "  if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
                     "};"
                 );
 
-                // Privacy Policy floating button.
-                fireJs(
-                    "(function() {" +
-                    "  var btn = document.getElementById('_pp_btn');" +
-                    "  if (btn) btn.remove();" +
-                    "  btn = document.createElement('div');" +
-                    "  btn.id = '_pp_btn';" +
-                    "  btn.innerText = 'Privacy Policy';" +
-                    "  btn.style.cssText = 'position:fixed; bottom:10px; left:10px; z-index:2147483647; font-size:12px; color:white; background:rgba(0,0,0,0.5); padding:5px 10px; border-radius:5px; cursor:pointer; pointer-events:auto;';" +
-                    "  var handler = function(e) {" +
-                    "    e.preventDefault(); e.stopPropagation();" +
-                    "    if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
-                    "  };" +
-                    "  btn.addEventListener('click', handler, true);" +
-                    "  btn.addEventListener('touchstart', handler, true);" +
-                    "  document.body.appendChild(btn);" +
-                    "})();"
-                );
+                webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
             }
         });
 
-        webView.loadUrl("https://appassets.androidplatform.net/assets/game/index.html");
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
     }
 
     private void initAppodeal() {
-        try {
-            Appodeal.setTesting(false);
-            int adTypes = Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.MREC;
-            Appodeal.initialize(this, APP_KEY, adTypes, initialized -> {
-                appodealReady = true;
-                Log.d(TAG, "Appodeal initialized, showing banner");
-                runOnUiThread(() -> {
-                    try {
-                        Appodeal.show(this, Appodeal.BANNER);
-                    } catch (Throwable t) {
-                        Log.e(TAG, "showBanner after init: " + t);
-                    }
-                    // Preload the interstitial immediately so it's already sitting
-                    // in memory before the player ever dies - same pattern the old
-                    // build used with AdMob (load once at start, reload after every
-                    // show/close/fail so there's never a wait at show-time).
-                    try {
-                        Appodeal.cache(this, Appodeal.INTERSTITIAL);
-                    } catch (Throwable t) {
-                        Log.e(TAG, "precache interstitial: " + t);
-                    }
-                    try {
-                        Appodeal.cache(this, Appodeal.MREC);
-                    } catch (Throwable t) {
-                        Log.e(TAG, "precache mrec: " + t);
-                    }
-                });
-            });
+        Appodeal.setLogLevel(com.appodeal.ads.utils.Log.LogLevel.verbose);
+        Appodeal.setTesting(false);
+        Appodeal.initialize(this, APP_KEY,
+                Appodeal.INTERSTITIAL | Appodeal.BANNER | Appodeal.MREC);
 
-            Appodeal.setBannerCallbacks(new BannerCallbacks() {
-                public void onBannerLoaded(int h, boolean isPrecache) { Log.d(TAG, "Banner loaded h=" + h); }
-                public void onBannerFailedToLoad() { Log.w(TAG, "Banner failed to load"); }
-                public void onBannerShown() { Log.d(TAG, "Banner shown"); }
-                public void onBannerShowFailed() { Log.w(TAG, "Banner show failed"); }
-                public void onBannerClicked() { Log.d(TAG, "Banner clicked"); }
-                public void onBannerExpired() { Log.d(TAG, "Banner expired"); }
-            });
-
-            Appodeal.setMrecCallbacks(new MrecCallbacks() {
-                public void onMrecLoaded(boolean isPrecache) {
-                    Log.d(TAG, "MREC loaded isPrecache=" + isPrecache);
-                    // If showMREC() was called before the fill arrived, show it now.
-                    if (mrecPending) {
-                        mrecPending = false;
-                        runOnUiThread(() -> {
-                            try {
-                                boolean ok = Appodeal.show(MainActivity.this, Appodeal.MREC);
-                                Log.d(TAG, "MREC deferred show: " + ok);
-                            } catch (Throwable t) { Log.e(TAG, "MREC deferred show error: " + t); }
-                        });
-                    }
-                }
-                public void onMrecFailedToLoad()  {
-                    Log.w(TAG, "MREC failed to load — retrying cache");
-                    try { Appodeal.cache(MainActivity.this, Appodeal.MREC); } catch (Throwable t) {}
-                }
-                public void onMrecShown()         {
-                    Log.d(TAG, "MREC shown");
-                    fireJs("if(typeof window.onMRECAdShown === 'function') window.onMRECAdShown();");
-                    // Re-cache immediately so the next death already has a fill waiting.
-                    try { Appodeal.cache(MainActivity.this, Appodeal.MREC); } catch (Throwable t) {}
-                }
-                public void onMrecShowFailed()    { Log.w(TAG, "MREC show failed"); }
-                public void onMrecClicked()       { Log.d(TAG, "MREC clicked"); }
-                public void onMrecExpired()       { Log.d(TAG, "MREC expired"); }
-            });
-
-            Appodeal.setInterstitialCallbacks(new InterstitialCallbacks() {
-                public void onInterstitialLoaded(boolean isPrecache) { Log.d(TAG, "Interstitial loaded"); }
-                public void onInterstitialFailedToLoad() {
-                    Log.w(TAG, "Interstitial failed to load");
-                    try { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); } catch (Throwable t) {}
-                }
-                public void onInterstitialShown() {
-                    Log.d(TAG, "Interstitial shown");
-                    // index.html defines onInterstitialAdShown — it emits 'opened' via _adEmitter.
-                    fireJs("if(typeof window.onInterstitialAdShown === 'function') window.onInterstitialAdShown();");
-                }
-                public void onInterstitialShowFailed() {
-                    Log.w(TAG, "Interstitial show failed");
-                    // index.html's onInterstitialAdFailed calls _unmuteAfterAd() + emits event.
-                    fireJs("if(typeof window.onInterstitialAdFailed === 'function') window.onInterstitialAdFailed();");
-                    try { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); } catch (Throwable t) {}
-                }
-                public void onInterstitialClicked() { Log.d(TAG, "Interstitial clicked"); }
-                public void onInterstitialClosed() {
-                    Log.d(TAG, "Interstitial closed");
-                    // index.html's onInterstitialAdClosed calls _unmuteAfterAd() + emits event.
-                    fireJs("if(typeof window.onInterstitialAdClosed === 'function') window.onInterstitialAdClosed();");
-                    try { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); } catch (Throwable t) {}
-                }
-                public void onInterstitialExpired() { Log.d(TAG, "Interstitial expired"); }
-            });
-
-        } catch (Throwable t) {
-            Log.e(TAG, "initAppodeal error: " + t);
-        }
-    }
-
-    void showMREC() {
-        if (!appodealReady) return;
-        runOnUiThread(() -> {
-            try {
-                if (Appodeal.isLoaded(Appodeal.MREC)) {
-                    // Fill is ready — show immediately and log the result.
-                    // Appodeal centres the 300x250 view on screen automatically.
-                    boolean ok = Appodeal.show(this, Appodeal.MREC);
-                    Log.d(TAG, "showMREC immediate: " + ok);
-                    mrecPending = false;
-                } else {
-                    // Fill not yet arrived — flag it and re-cache.
-                    // onMrecLoaded will call show() as soon as the fill is ready.
-                    Log.d(TAG, "MREC not loaded yet — flagging pending and caching");
-                    mrecPending = true;
-                    Appodeal.cache(this, Appodeal.MREC);
-                }
-            } catch (Throwable t) { Log.e(TAG, "showMREC: " + t); }
+        Appodeal.setInterstitialCallbacks(new InterstitialCallbacks() {
+            @Override public void onInterstitialLoaded(boolean isPrecache) { Log.d(TAG, "Interstitial loaded"); }
+            @Override public void onInterstitialFailedToLoad() { Log.d(TAG, "Interstitial failed to load"); fireJs("if(window.onInterstitialAdFailed)onInterstitialAdFailed();"); }
+            @Override public void onInterstitialShown() { Log.d(TAG, "Interstitial shown"); }
+            @Override public void onInterstitialShowFailed() { Log.d(TAG, "Interstitial show failed"); fireJs("if(window.onInterstitialAdFailed)onInterstitialAdFailed();"); }
+            @Override public void onInterstitialClicked() { Log.d(TAG, "Interstitial clicked"); }
+            @Override public void onInterstitialClosed() { Log.d(TAG, "Interstitial closed"); fireJs("if(window.onInterstitialAdClosed)onInterstitialAdClosed();"); }
+            @Override public void onInterstitialExpired() { Log.d(TAG, "Interstitial expired"); }
         });
+
+        Appodeal.setBannerCallbacks(new BannerCallbacks() {
+            @Override public void onBannerLoaded(int height, boolean isPrecache) { Log.d(TAG, "Banner loaded"); }
+            @Override public void onBannerFailedToLoad() { Log.d(TAG, "Banner failed to load"); }
+            @Override public void onBannerShown() { Log.d(TAG, "Banner shown"); }
+            @Override public void onBannerShowFailed() { Log.d(TAG, "Banner show failed"); }
+            @Override public void onBannerClicked() { Log.d(TAG, "Banner clicked"); }
+            @Override public void onBannerExpired() { Log.d(TAG, "Banner expired"); }
+        });
+
+        Appodeal.setMrecCallbacks(new MrecCallbacks() {
+            @Override public void onMrecLoaded(boolean isPrecache) { Log.d(TAG, "MREC loaded"); }
+            @Override public void onMrecFailedToLoad() { Log.d(TAG, "MREC failed to load"); }
+            @Override public void onMrecShown() {
+                Log.d(TAG, "MREC shown");
+                // Re-cache immediately so next death has fill ready
+                Appodeal.cache(MainActivity.this, Appodeal.MREC);
+            }
+            @Override public void onMrecShowFailed() {
+                Log.d(TAG, "MREC show failed");
+                runOnUiThread(() -> {
+                    if (mrecView != null) mrecView.setVisibility(View.GONE);
+                });
+            }
+            @Override public void onMrecClicked() { Log.d(TAG, "MREC clicked"); }
+            @Override public void onMrecExpired() { Log.d(TAG, "MREC expired"); }
+        });
+
+        // Pre-cache interstitial and MREC for first death
+        Appodeal.cache(this, Appodeal.INTERSTITIAL);
+        Appodeal.cache(this, Appodeal.MREC);
+
+        appodealReady = true;
     }
 
-    void hideMREC() {
-        mrecPending = false; // cancel any pending show if player retried before fill arrived
+    void showInterstitial() {
         runOnUiThread(() -> {
-            try {
-                if (appodealReady) Appodeal.hide(this, Appodeal.MREC);
-            } catch (Throwable t) { Log.e(TAG, "hideMREC: " + t); }
+            if (Appodeal.isLoaded(Appodeal.INTERSTITIAL)) {
+                Appodeal.show(this, Appodeal.INTERSTITIAL);
+            } else {
+                Log.d(TAG, "Interstitial not loaded, firing failed callback");
+                fireJs("if(window.onInterstitialAdFailed)onInterstitialAdFailed();");
+            }
         });
     }
 
     void showBanner() {
-        if (!appodealReady) return;
-        runOnUiThread(() -> {
-            try { Appodeal.show(this, Appodeal.BANNER); }
-            catch (Throwable t) { Log.e(TAG, "showBanner: " + t); }
-        });
+        runOnUiThread(() -> Appodeal.show(this, Appodeal.BANNER_BOTTOM));
     }
 
     void hideBanner() {
-        if (!appodealReady) return;
-        runOnUiThread(() -> {
-            try { Appodeal.hide(this, Appodeal.BANNER); }
-            catch (Throwable t) { Log.e(TAG, "hideBanner: " + t); }
-        });
-    }
-
-    void showInterstitialAd() {
-        if (!appodealReady) {
-            fireJs("if(typeof window.onInterstitialAdFailed === 'function') window.onInterstitialAdFailed();");
-            return;
-        }
-        runOnUiThread(() -> {
-            try {
-                if (Appodeal.isLoaded(Appodeal.INTERSTITIAL)) {
-                    Appodeal.show(this, Appodeal.INTERSTITIAL);
-                } else {
-                    Log.d(TAG, "Interstitial not loaded yet");
-                    fireJs("if(typeof window.onInterstitialAdFailed === 'function') window.onInterstitialAdFailed();");
-                }
-            } catch (Throwable t) {
-                Log.e(TAG, "showInterstitial: " + t);
-                fireJs("if(typeof window.onInterstitialAdFailed === 'function') window.onInterstitialAdFailed();");
-            }
-        });
-    }
-
-    void showRewardedAd() {
-        fireJs("if(typeof window.onRewardedAdFailed === 'function') window.onRewardedAdFailed();");
+        runOnUiThread(() -> Appodeal.hide(this, Appodeal.BANNER_BOTTOM));
     }
 
     /**
-     * Opens the privacy policy in the device browser.
+     * Show the MREC ad.
+     *
+     * Appodeal.show(activity, Appodeal.MREC) ONLY works when an AppodealView
+     * with adType="mrec" exists in the current view hierarchy (activity_main.xml).
+     * Without that view the call is a silent no-op — which was exactly the bug.
+     *
+     * Flow:
+     *   1. Make the AppodealView visible so Appodeal can target it.
+     *   2. Call Appodeal.show() to fill it with the cached ad.
+     */
+    void showMREC() {
+        runOnUiThread(() -> {
+            if (mrecView == null) return;
+            mrecView.setVisibility(View.VISIBLE);
+            Appodeal.show(this, Appodeal.MREC);
+            Log.d(TAG, "showMREC: visibility=VISIBLE, show() called");
+        });
+    }
+
+    /**
+     * Hide the MREC ad and cache a fresh one for the next death.
+     */
+    void hideMREC() {
+        runOnUiThread(() -> {
+            if (mrecView != null) mrecView.setVisibility(View.GONE);
+            Appodeal.hide(this, Appodeal.MREC);
+            Log.d(TAG, "hideMREC: visibility=GONE");
+        });
+    }
+
+    /**
+     * The ONLY URL this app will ever open via the bridge.
      * No URL comes from JS — destination is this hardcoded constant only.
      */
     void openPrivacyPolicy() {

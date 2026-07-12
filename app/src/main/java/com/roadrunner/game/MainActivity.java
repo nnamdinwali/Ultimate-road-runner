@@ -13,6 +13,7 @@ import androidx.webkit.WebViewClientCompat;
 import com.appodeal.ads.Appodeal;
 import com.appodeal.ads.BannerCallbacks;
 import com.appodeal.ads.InterstitialCallbacks;
+import com.appodeal.ads.MrecCallbacks;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "URR";
@@ -122,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
     private void initAppodeal() {
         try {
             Appodeal.setTesting(false);
-            int adTypes = Appodeal.BANNER | Appodeal.INTERSTITIAL;
+            int adTypes = Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.MREC;
             Appodeal.initialize(this, APP_KEY, adTypes, initialized -> {
                 appodealReady = true;
                 Log.d(TAG, "Appodeal initialized, showing banner");
@@ -141,6 +142,11 @@ public class MainActivity extends AppCompatActivity {
                     } catch (Throwable t) {
                         Log.e(TAG, "precache interstitial: " + t);
                     }
+                    try {
+                        Appodeal.cache(this, Appodeal.MREC);
+                    } catch (Throwable t) {
+                        Log.e(TAG, "precache mrec: " + t);
+                    }
                 });
             });
 
@@ -151,6 +157,18 @@ public class MainActivity extends AppCompatActivity {
                 public void onBannerShowFailed() { Log.w(TAG, "Banner show failed"); }
                 public void onBannerClicked() { Log.d(TAG, "Banner clicked"); }
                 public void onBannerExpired() { Log.d(TAG, "Banner expired"); }
+            });
+
+            Appodeal.setMrecCallbacks(new MrecCallbacks() {
+                public void onMrecLoaded(boolean isPrecache) { Log.d(TAG, "MREC loaded isPrecache=" + isPrecache); }
+                public void onMrecFailedToLoad()  { Log.w(TAG, "MREC failed to load"); }
+                public void onMrecShown()         {
+                    Log.d(TAG, "MREC shown");
+                    fireJs("if(typeof window.onMRECAdShown === 'function') window.onMRECAdShown();");
+                }
+                public void onMrecShowFailed()    { Log.w(TAG, "MREC show failed"); }
+                public void onMrecClicked()       { Log.d(TAG, "MREC clicked"); }
+                public void onMrecExpired()       { Log.d(TAG, "MREC expired"); }
             });
 
             Appodeal.setInterstitialCallbacks(new InterstitialCallbacks() {
@@ -183,6 +201,27 @@ public class MainActivity extends AppCompatActivity {
         } catch (Throwable t) {
             Log.e(TAG, "initAppodeal error: " + t);
         }
+    }
+
+    void showMREC() {
+        if (!appodealReady) return;
+        runOnUiThread(() -> {
+            try {
+                // MREC shows centered on screen — Appodeal manages its own view overlay.
+                // It only appears after the interstitial has already closed, so it never
+                // conflicts with the fullscreen ad. hideMREC() is called the moment the
+                // player taps Retry (hooked via replaceScene in index.html).
+                Appodeal.show(this, Appodeal.MREC);
+            } catch (Throwable t) { Log.e(TAG, "showMREC: " + t); }
+        });
+    }
+
+    void hideMREC() {
+        runOnUiThread(() -> {
+            try {
+                if (appodealReady) Appodeal.hide(this, Appodeal.MREC);
+            } catch (Throwable t) { Log.e(TAG, "hideMREC: " + t); }
+        });
     }
 
     void showBanner() {

@@ -8,19 +8,5 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!--
-        MREC (300x250) ad container.
-        Appodeal pairs this view with MREC at runtime via Appodeal.show(activity, Appodeal.MREC).
-        adType is NOT an XML attribute in Appodeal 3.3.1 — type pairing is done in Java only.
-        Hidden by default; shown after each interstitial closes, hidden on Retry.
-    -->
-    <com.appodeal.ads.AppodealView
-        android:id="@+id/mrecView"
-        android:layout_width="300dp"
-        android:layout_height="250dp"
-        android:layout_gravity="center_horizontal|bottom"
-        android:layout_marginBottom="60dp"
-        android:visibility="gone" />
-
 </FrameLayout>
 

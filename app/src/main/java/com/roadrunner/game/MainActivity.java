@@ -161,7 +161,8 @@ public class MainActivity extends AppCompatActivity {
                 }
                 public void onInterstitialShown() {
                     Log.d(TAG, "Interstitial shown");
-                    // index.html does not define onInterstitialAdShown — nothing to call.
+                    // index.html defines onInterstitialAdShown — it emits 'opened' via _adEmitter.
+                    fireJs("if(typeof window.onInterstitialAdShown === 'function') window.onInterstitialAdShown();");
                 }
                 public void onInterstitialShowFailed() {
                     Log.w(TAG, "Interstitial show failed");

@@ -22,12 +22,16 @@ public class MainActivity extends AppCompatActivity {
     private static final String PRIVACY_POLICY_URL =
             "https://nnamdinwali.github.io/ultimate-road-runner-privacy/";
 
+    // Game is in app/src/main/assets/game/index.html
+    // WebViewAssetLoader maps /assets/ -> assets folder, so URL is /assets/game/index.html
+    private static final String GAME_URL =
+            "https://appassets.androidplatform.net/assets/game/index.html";
+
     private WebView webView;
-    private boolean appodealReady = false;
 
     /**
-     * Set to true when showMREC() is called but Appodeal fill isn't loaded yet.
-     * onMrecLoaded() checks this and auto-shows the MREC once fill arrives.
+     * Set to true when showMREC() is called but fill isn't loaded yet.
+     * onMrecLoaded() auto-shows once fill arrives.
      * Cleared by hideMREC() so Retry cancels a pending MREC correctly.
      */
     private volatile boolean mrecPending = false;
@@ -74,11 +78,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // Inject thin pass-through stubs so any legacy GDevelop event that
-                // calls window.showInterstitialAd() / showBanner() / etc. directly
-                // still reaches AndroidBridge. The actual ad lifecycle callbacks
-                // (onInterstitialAdClosed, onInterstitialAdFailed, etc.) are defined
-                // in index.html and must NOT be overridden here.
+                // Inject thin pass-through stubs so any GDevelop event that calls
+                // window.showInterstitialAd() etc. directly still reaches AndroidBridge.
+                // Callbacks (onInterstitialAdClosed, etc.) are defined in index.html.
                 fireJs(
                     "window.showInterstitialAd = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
@@ -99,11 +101,11 @@ public class MainActivity extends AppCompatActivity {
                     "  if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
                     "};"
                 );
-                webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
             }
         });
 
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
+        // Single load — do NOT call loadUrl again inside onPageFinished (causes infinite loop)
+        webView.loadUrl(GAME_URL);
     }
 
     private void initAppodeal() {
@@ -163,7 +165,6 @@ public class MainActivity extends AppCompatActivity {
 
         Appodeal.cache(this, Appodeal.INTERSTITIAL);
         Appodeal.cache(this, Appodeal.MREC);
-        appodealReady = true;
     }
 
     void showInterstitialAd() {
@@ -233,7 +234,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         // Deliberately NOT calling webView.onPause() — that froze the WebView JS clock
-        // whenever an ad Activity covered this one, causing the "freeze on death" bug.
+        // whenever an ad Activity covered this one (the original "freeze on death" bug).
     }
 
     @Override

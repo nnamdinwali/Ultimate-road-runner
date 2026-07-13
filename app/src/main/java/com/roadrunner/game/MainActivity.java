@@ -22,16 +22,12 @@ public class MainActivity extends AppCompatActivity {
     private static final String PRIVACY_POLICY_URL =
             "https://nnamdinwali.github.io/ultimate-road-runner-privacy/";
 
-    // Game is in app/src/main/assets/game/index.html
-    // WebViewAssetLoader maps /assets/ -> assets folder, so URL is /assets/game/index.html
-    private static final String GAME_URL =
-            "https://appassets.androidplatform.net/assets/game/index.html";
-
     private WebView webView;
+    private boolean appodealReady = false;
 
     /**
      * Set to true when showMREC() is called but fill isn't loaded yet.
-     * onMrecLoaded() auto-shows once fill arrives.
+     * onMrecLoaded() checks this and auto-shows the MREC once fill arrives.
      * Cleared by hideMREC() so Retry cancels a pending MREC correctly.
      */
     private volatile boolean mrecPending = false;
@@ -78,9 +74,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                // Inject thin pass-through stubs so any GDevelop event that calls
-                // window.showInterstitialAd() etc. directly still reaches AndroidBridge.
-                // Callbacks (onInterstitialAdClosed, etc.) are defined in index.html.
+                // Thin pass-through stubs — actual ad lifecycle callbacks live in index.html
                 fireJs(
                     "window.showInterstitialAd = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
@@ -101,11 +95,11 @@ public class MainActivity extends AppCompatActivity {
                     "  if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
                     "};"
                 );
+                webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
             }
         });
 
-        // Single load — do NOT call loadUrl again inside onPageFinished (causes infinite loop)
-        webView.loadUrl(GAME_URL);
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
     }
 
     private void initAppodeal() {
@@ -145,17 +139,20 @@ public class MainActivity extends AppCompatActivity {
         Appodeal.setMrecCallbacks(new MrecCallbacks() {
             @Override public void onMrecLoaded(boolean isPrecache) {
                 Log.d(TAG, "MREC loaded, mrecPending=" + mrecPending);
+                // KEY FIX: if showMREC() was called while fill wasn't ready,
+                // auto-show now that fill has arrived.
                 if (mrecPending) {
                     mrecPending = false;
                     runOnUiThread(() -> Appodeal.show(MainActivity.this, Appodeal.MREC));
                 }
             }
             @Override public void onMrecFailedToLoad() {
-                Log.d(TAG, "MREC failed to load, retrying cache");
-                Appodeal.cache(MainActivity.this, Appodeal.MREC);
+                Log.d(TAG, "MREC failed to load");
+                mrecPending = false;
             }
             @Override public void onMrecShown() {
                 Log.d(TAG, "MREC shown — re-caching for next death");
+                // Re-cache immediately so next death has fill ready
                 Appodeal.cache(MainActivity.this, Appodeal.MREC);
             }
             @Override public void onMrecShowFailed() { Log.d(TAG, "MREC show failed"); }
@@ -163,8 +160,11 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onMrecExpired() { Log.d(TAG, "MREC expired"); }
         });
 
+        // Pre-cache for first death
         Appodeal.cache(this, Appodeal.INTERSTITIAL);
         Appodeal.cache(this, Appodeal.MREC);
+
+        appodealReady = true;
     }
 
     void showInterstitialAd() {
@@ -193,6 +193,17 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> Appodeal.hide(this, Appodeal.BANNER_BOTTOM));
     }
 
+    /**
+     * Show MREC after interstitial closes/fails.
+     *
+     * Appodeal.show(activity, Appodeal.MREC) renders a floating 300x250 overlay
+     * managed by the SDK (no AppodealView XML widget — that class doesn't exist
+     * in Appodeal 3.3.1).
+     *
+     * If fill isn't loaded yet, set mrecPending=true so onMrecLoaded()
+     * auto-shows it the moment fill arrives. Without this flag, a cache miss
+     * would silently drop the MREC forever.
+     */
     void showMREC() {
         runOnUiThread(() -> {
             if (Appodeal.isLoaded(Appodeal.MREC)) {
@@ -201,11 +212,16 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, "showMREC: fill ready, showing");
             } else {
                 mrecPending = true;
-                Log.d(TAG, "showMREC: fill not ready, mrecPending=true");
+                Log.d(TAG, "showMREC: fill not ready, mrecPending=true — will show in onMrecLoaded");
             }
         });
     }
 
+    /**
+     * Hide MREC (player tapped Retry).
+     * Also clears mrecPending so a fill that arrives after Retry doesn't
+     * pop up mid-gameplay.
+     */
     void hideMREC() {
         runOnUiThread(() -> {
             mrecPending = false;
@@ -234,7 +250,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         // Deliberately NOT calling webView.onPause() — that froze the WebView JS clock
-        // whenever an ad Activity covered this one (the original "freeze on death" bug).
+        // whenever an ad Activity covered this one, causing the "freeze on death" bug.
     }
 
     @Override

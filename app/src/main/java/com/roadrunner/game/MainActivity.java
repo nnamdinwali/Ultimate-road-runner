@@ -74,23 +74,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-
-                // Guard: only inject stubs when the game page itself finishes loading.
-                // Without this check onPageFinished fires for every sub-resource too.
-                if (url == null || !url.contains("index.html")) return;
-
                 // Inject thin pass-through stubs so any legacy GDevelop event that
                 // calls window.showInterstitialAd() / showBanner() / etc. directly
                 // still reaches AndroidBridge. The actual ad lifecycle callbacks
                 // (onInterstitialAdClosed, onInterstitialAdFailed, etc.) are defined
                 // in index.html and must NOT be overridden here.
-                //
-                // *** DO NOT call webView.loadUrl() here. ***
-                // Doing so creates an infinite reload loop:
-                //   loadUrl() → page loads → onPageFinished → loadUrl() → ...
-                // The initial loadUrl() at the bottom of initWebView() is the only
-                // call needed. Every reload destroys the JS context, re-runs
-                // _startAdTimers(), and wipes any in-flight MREC state.
                 fireJs(
                     "window.showInterstitialAd = function() {" +
                     "  if (window.AndroidBridge) window.AndroidBridge.showInterstitialAd();" +
@@ -111,10 +99,10 @@ public class MainActivity extends AppCompatActivity {
                     "  if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();" +
                     "};"
                 );
+                webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
             }
         });
 
-        // Single initial load — onPageFinished above handles stub injection.
         webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html");
     }
 
@@ -155,23 +143,17 @@ public class MainActivity extends AppCompatActivity {
         Appodeal.setMrecCallbacks(new MrecCallbacks() {
             @Override public void onMrecLoaded(boolean isPrecache) {
                 Log.d(TAG, "MREC loaded, mrecPending=" + mrecPending);
-                // If showMREC() was called while fill wasn't ready, auto-show now.
                 if (mrecPending) {
                     mrecPending = false;
                     runOnUiThread(() -> Appodeal.show(MainActivity.this, Appodeal.MREC));
                 }
             }
             @Override public void onMrecFailedToLoad() {
-                Log.d(TAG, "MREC failed to load, mrecPending=" + mrecPending);
-                // Do NOT clear mrecPending — leave it true so the next automatic
-                // cache attempt (triggered by Appodeal auto-cache) can still show
-                // the MREC when fill eventually arrives.
-                // Also kick off a fresh cache attempt immediately.
+                Log.d(TAG, "MREC failed to load, retrying cache");
                 Appodeal.cache(MainActivity.this, Appodeal.MREC);
             }
             @Override public void onMrecShown() {
                 Log.d(TAG, "MREC shown — re-caching for next death");
-                // Re-cache immediately so fill is ready for the next death.
                 Appodeal.cache(MainActivity.this, Appodeal.MREC);
             }
             @Override public void onMrecShowFailed() { Log.d(TAG, "MREC show failed"); }
@@ -179,14 +161,11 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onMrecExpired() { Log.d(TAG, "MREC expired"); }
         });
 
-        // Pre-cache both for first death
         Appodeal.cache(this, Appodeal.INTERSTITIAL);
         Appodeal.cache(this, Appodeal.MREC);
-
         appodealReady = true;
     }
 
-    // Called by AndroidBridge — must match that name exactly
     void showInterstitialAd() {
         runOnUiThread(() -> {
             if (Appodeal.isLoaded(Appodeal.INTERSTITIAL)) {
@@ -198,7 +177,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // Called by AndroidBridge — rewarded not implemented, fire failed so game handles it
     void showRewardedAd() {
         runOnUiThread(() -> {
             Log.d(TAG, "Rewarded not implemented — firing failed");
@@ -214,34 +192,19 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> Appodeal.hide(this, Appodeal.BANNER_BOTTOM));
     }
 
-    /**
-     * Show MREC after interstitial closes/fails.
-     *
-     * Appodeal.show(activity, Appodeal.MREC) renders a floating 300×250 managed
-     * entirely by the SDK — no XML AppodealView needed (class doesn't exist in 3.3.1).
-     *
-     * If fill isn't ready yet, mrecPending=true tells onMrecLoaded() to
-     * auto-show the moment fill arrives — without this, a cache miss would
-     * silently drop the MREC forever.
-     */
     void showMREC() {
         runOnUiThread(() -> {
             if (Appodeal.isLoaded(Appodeal.MREC)) {
                 mrecPending = false;
                 Appodeal.show(this, Appodeal.MREC);
-                Log.d(TAG, "showMREC: fill ready, showing now");
+                Log.d(TAG, "showMREC: fill ready, showing");
             } else {
                 mrecPending = true;
-                Log.d(TAG, "showMREC: fill not ready — mrecPending=true, will show in onMrecLoaded");
+                Log.d(TAG, "showMREC: fill not ready, mrecPending=true");
             }
         });
     }
 
-    /**
-     * Hide MREC when player taps Retry.
-     * Clears mrecPending so a fill arriving after Retry doesn't
-     * pop up mid-gameplay.
-     */
     void hideMREC() {
         runOnUiThread(() -> {
             mrecPending = false;

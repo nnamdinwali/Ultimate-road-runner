@@ -10,6 +10,56 @@
     <style>
         body { margin: 0; padding: 0; background-color: #000000; overflow: hidden; }
         #canvasArea { margin-left: auto; margin-right: auto; overflow: hidden; }
+
+        /* ── Watch-Ad jelly button — matches Retry / Submit Score style ── */
+        #_wr_btn {
+            display: none;
+            position: fixed;
+            bottom: 22%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none; /* touch handled via capture listener */
+        }
+        #_wr_btn_inner {
+            background: linear-gradient(to bottom, #FFE566 0%, #FFB300 55%, #FF8C00 100%);
+            border: 3px solid #7A4100;
+            border-radius: 22px;
+            box-shadow: 0 7px 0 #7A4100, 0 10px 22px rgba(0,0,0,0.55);
+            color: #FFFFFF;
+            font-size: 17px;
+            font-weight: 900;
+            font-family: sans-serif;
+            text-shadow: 1px 2px 4px rgba(0,0,0,0.65);
+            padding: 13px 30px;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        /* ── Privacy Policy button — small, bottom-right corner ── */
+        #_pp_btn {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 9999;
+            pointer-events: none; /* touch handled via capture listener */
+        }
+        #_pp_btn_inner {
+            background: rgba(0,0,0,0.55);
+            border: 1.5px solid rgba(255,255,255,0.35);
+            border-radius: 10px;
+            color: rgba(255,255,255,0.80);
+            font-size: 11px;
+            font-family: sans-serif;
+            padding: 5px 10px;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
     </style>
     <script type="text/javascript">
 
@@ -46,26 +96,9 @@
             return false;
         }
 
-        /* _pauseGame/_resumeGame fully halt the game engine loop. They are
-           reserved for real app backgrounding (visibilitychange) — never
-           for ads. Ads must NEVER be able to freeze the game: the player
-           is already dead/between actions when an ad fires, there is
-           nothing to protect by halting the engine, and doing so made the
-           game hostage to third-party ad SDK callbacks that can be
-           delayed, dropped, or never fire at all. */
-        function _pauseGame() {
-            // No longer halts the engine - see _muteForAd/_unmuteAfterAd below.
-            // Kept as a mute-only alias so any remaining caller is harmless.
-            _muteForAd();
-        }
-        function _resumeGame() {
-            _unmuteAfterAd();
-        }
+        function _pauseGame() { _muteForAd(); }
+        function _resumeGame() { _unmuteAfterAd(); }
 
-        /* Ad-only audio ducking — mutes game sound while an ad plays, but
-           deliberately never touches window._gmGame.pause(). The game
-           engine/UI (Retry button, tweens, timers) keeps running no matter
-           what the ad SDK does or how long it takes to call back. */
         function _muteForAd() {
             try { if (typeof Howler !== 'undefined') Howler.mute(true); } catch(e) {}
             if (window._gmBgm) window._gmBgm.pause();
@@ -80,21 +113,63 @@
             }
         }
 
-        /* Native → JS callbacks (called by Kotlin via evaluateJavascript) */
+        /* ── Coin helpers for rewarded ad ─────────────────────────────────── */
+        var _coinsAtRunStart = 0;
+        var _wrbtnClaimed    = false;
+
+        function _getCoins() {
+            try {
+                var stack = window._gmGame && window._gmGame._sceneStack && window._gmGame._sceneStack._stack;
+                if (!stack || !stack.length) return 0;
+                return stack[0].getVariables().get('CoinsCount').getAsNumber() || 0;
+            } catch(e) { return 0; }
+        }
+        function _addCoins(amount) {
+            try {
+                var stack = window._gmGame && window._gmGame._sceneStack && window._gmGame._sceneStack._stack;
+                if (!stack || !stack.length) return;
+                var v = stack[0].getVariables().get('CoinsCount');
+                v.setNumber(v.getAsNumber() + amount);
+            } catch(e) {}
+        }
+        function _showWrBtn(reward) {
+            var btn = document.getElementById('_wr_btn');
+            if (!btn) return;
+            var lbl = document.getElementById('_wr_label');
+            if (lbl) lbl.textContent = '\uD83C\uDFAC Watch Ad  +' + reward + ' Coins';
+            btn._rewardAmount = reward;
+            btn.style.display = 'flex';
+        }
+        function _hideWrBtn() {
+            var btn = document.getElementById('_wr_btn');
+            if (btn) btn.style.display = 'none';
+        }
+
+        /* ── Native → JS callbacks ─────────────────────────────────────────── */
         window.onInterstitialAdLoaded   = function() { _adEmitter.emit('interstitial_state_changed', 'loaded'); };
         window.onInterstitialAdShown    = function() { _adEmitter.emit('interstitial_state_changed', 'opened'); };
         window.onInterstitialAdClosed   = function() { _unmuteAfterAd(); _callNative('showMREC'); _adEmitter.emit('interstitial_state_changed', 'closed'); };
         window.onInterstitialAdFailed   = function() { _unmuteAfterAd(); _callNative('showMREC'); _adEmitter.emit('interstitial_state_changed', 'failed'); };
         window.onRewardedAdLoaded       = function() { _adEmitter.emit('rewarded_state_changed', 'loaded'); };
         window.onRewardedAdShown        = function() { _adEmitter.emit('rewarded_state_changed', 'opened'); };
-        window.onRewardedAdRewarded     = function() { _adEmitter.emit('rewarded_state_changed', 'rewarded'); };
+        window.onRewardedAdRewarded     = function() {
+            _adEmitter.emit('rewarded_state_changed', 'rewarded');
+            if (!_wrbtnClaimed) {
+                _wrbtnClaimed = true;
+                var btn = document.getElementById('_wr_btn');
+                var reward = (btn && btn._rewardAmount) ? btn._rewardAmount : 5;
+                _addCoins(reward);
+                window._pgSaveProgress && window._pgSaveProgress();
+                _hideWrBtn();
+            }
+        };
         window.onRewardedAdClosed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'closed'); };
         window.onRewardedAdFailed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'failed'); };
         window.onMRECAdShown            = function() { _adEmitter.emit('mrec_state_changed', 'shown'); };
         window.onBannerAdShown          = function() { _adEmitter.emit('banner_state_changed', 'shown'); };
         window.onBannerAdHidden         = function() { _adEmitter.emit('banner_state_changed', 'hidden'); };
 
-        /* bridge.advertisement — routes to AndroidBridge (Unity Ads via Kotlin) */
+        /* bridge.advertisement */
         window.bridge = {
             advertisement: {
                 isInterstitialSupported: true,
@@ -134,7 +209,7 @@
             }
         };
 
-        /* ── Save/load progress via localStorage ──────────────────────────── */
+        /* ── Save/load progress ────────────────────────────────────────────── */
         window._pgSaveProgress = function() {
             try {
                 var stack = window._gmGame && window._gmGame._sceneStack && window._gmGame._sceneStack._stack;
@@ -154,13 +229,20 @@
             } catch(e) {}
         };
 
-        /* ── Ad timers — interstitial on death, banner on load ────────────── */
+        /* ── Ad timers ─────────────────────────────────────────────────────── */
         window._startAdTimers = function() {
             var _origOnDeath = window.gmOnDeath;
             window.gmOnDeath = function(runtimeScene) {
                 _origOnDeath && _origOnDeath(runtimeScene);
                 window._pgSaveProgress && window._pgSaveProgress();
-                _callNative('hideMREC');               // clear MREC from prior death
+                _callNative('hideMREC');
+
+                /* Show Watch-Ad button with reward = 5× coins earned this run */
+                var runCoins = Math.max(_getCoins() - _coinsAtRunStart, 0);
+                var reward   = Math.max(runCoins * 5, 5);
+                _wrbtnClaimed = false;
+                _showWrBtn(reward);
+
                 try { bridge.advertisement.showInterstitial(); } catch(e) {}
             };
             setTimeout(function() {
@@ -169,11 +251,6 @@
         };
 
         document.addEventListener('visibilitychange', function() {
-            // Mute-only, same as ads. The engine loop must never be halted by
-            // anything - not an ad, not backgrounding, nothing - because any
-            // halt is hostage to something else (native lifecycle, ad SDK
-            // callback) reliably resuming it, and that's exactly what caused
-            // the freeze-on-death bug.
             if (document.hidden) { _muteForAd(); }
             else { _unmuteAfterAd(); }
         });
@@ -338,6 +415,18 @@
     <script src="data.js?v=6" crossorigin="anonymous"></script>
 </head>
 <body>
+    <!-- Watch Ad button — shown on death screen, hidden at all other times -->
+    <div id="_wr_btn">
+        <div id="_wr_btn_inner">
+            <span id="_wr_label">&#127916; Watch Ad  +5 Coins</span>
+        </div>
+    </div>
+
+    <!-- Privacy Policy button — always visible, bottom-right corner -->
+    <div id="_pp_btn">
+        <div id="_pp_btn_inner">&#128274; Privacy Policy</div>
+    </div>
+
     <script>
     (function() {
         var game = new gdjs.RuntimeGame(gdjs.projectData, {});
@@ -348,11 +437,13 @@
             game.startGameLoop();
             window._startAdTimers();
 
-            /* Hide MREC the moment player taps Retry (GDevelop calls replaceScene). */
+            /* Capture run-start coins and hide Watch-Ad button on Retry */
             (function() {
                 var _rsc = gdjs.evtTools.runtimeScene.replaceScene;
                 gdjs.evtTools.runtimeScene.replaceScene = function(scene, name, clearOthers) {
                     _callNative('hideMREC');
+                    _hideWrBtn();
+                    _coinsAtRunStart = _getCoins(); /* snapshot for next run */
                     return _rsc.call(this, scene, name, clearOthers);
                 };
             })();
@@ -381,6 +472,8 @@
                             vars.get('Volume').setNumber(vol);
                             try { gdjs.evtTools.sound.setGlobalVolume(stack[0], vol); } catch(ve) {}
                         }
+                        /* Snapshot coins at game start so first-run reward is accurate */
+                        _coinsAtRunStart = _getCoins();
                     } catch(e) {}
                 });
 
@@ -438,8 +531,9 @@
             }
             setTimeout(hideMuteButton, 800);
 
-            /* Privacy Policy — document-level capture fires BEFORE the game canvas
-               can absorb the touch, so the button always responds */
+            /* ── Touch capture — fires BEFORE game canvas absorbs the touch ── */
+
+            /* Privacy Policy button */
             document.addEventListener('touchstart', function(e) {
                 var btn = document.getElementById('_pp_btn');
                 if (!btn) return;
@@ -452,6 +546,24 @@
                     if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();
                 }
             }, { capture: true, passive: false });
+
+            /* Watch Ad button */
+            document.addEventListener('touchstart', function(e) {
+                var btn = document.getElementById('_wr_btn');
+                if (!btn || btn.style.display === 'none') return;
+                var rect = btn.getBoundingClientRect();
+                var t = e.changedTouches[0];
+                if (t.clientX >= rect.left && t.clientX <= rect.right &&
+                    t.clientY >= rect.top  && t.clientY <= rect.bottom) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (!_wrbtnClaimed) {
+                        _hideWrBtn(); /* hide while ad plays */
+                        bridge.advertisement.showRewarded();
+                    }
+                }
+            }, { capture: true, passive: false });
+
         });
     })();
     </script>

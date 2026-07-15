@@ -10,6 +10,7 @@ import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -53,25 +54,20 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initWebView();
+        initPrivacyPolicyButton(); // native view — GDevelop cannot steal its clicks
         initYandex();
     }
 
-    // onPause and onResume deliberately do NOT touch webView.onPause/onResume.
-    // Calling webView.onPause() whenever an Activity covers this one (including
-    // Yandex's own interstitial Activity) was the root cause of the
-    // freeze-on-death bug — it halted the WebView's JS clock and left the game
-    // waiting for a callback that might never arrive.
-    // The game engine must never be paused by any ad or lifecycle event.
+    // onPause / onResume deliberately do NOT touch webView.onPause/onResume.
+    // Calling webView.onPause() whenever an Activity covered this one
+    // (including Yandex's interstitial Activity) was the root cause of the
+    // freeze-on-death bug. The game engine must never be paused.
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (bannerAdView != null) {
-            bannerAdView.destroy();
-        }
-        if (webView != null) {
-            webView.destroy();
-        }
+        if (bannerAdView != null) bannerAdView.destroy();
+        if (webView != null) webView.destroy();
     }
 
     @Override
@@ -81,6 +77,22 @@ public class MainActivity extends AppCompatActivity {
         } else {
             super.onBackPressed();
         }
+    }
+
+    // ── Privacy Policy (native overlay — GDevelop-proof) ─────────────────────
+
+    /**
+     * The Privacy Policy button is a plain Android TextView declared in the
+     * layout XML and stacked above the WebView in the native view hierarchy.
+     * Because it is a sibling of the WebView (not a child), Android dispatches
+     * touch events to it BEFORE the WebView ever sees them — GDevelop's canvas
+     * cannot intercept or suppress them regardless of what JS event listeners
+     * it registers.
+     */
+    private void initPrivacyPolicyButton() {
+        TextView btn = findViewById(R.id.privacyPolicyBtn);
+        if (btn == null) return;
+        btn.setOnClickListener(v -> openPrivacyPolicy());
     }
 
     // ── WebView setup ────────────────────────────────────────────────────────
@@ -108,29 +120,6 @@ public class MainActivity extends AppCompatActivity {
                     WebView view, android.webkit.WebResourceRequest request) {
                 return assetLoader.shouldInterceptRequest(request.getUrl());
             }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                // Privacy Policy floating button — injected after page load so it
-                // always sits on top of the game canvas.
-                fireJs(
-                    "(function(){" +
-                    "  var btn=document.getElementById('_pp_btn');if(btn)btn.remove();" +
-                    "  btn=document.createElement('div');" +
-                    "  btn.id='_pp_btn';btn.innerText='Privacy Policy';" +
-                    "  btn.style.cssText='position:fixed;bottom:10px;left:10px;" +
-                        "z-index:2147483647;font-size:12px;color:white;" +
-                        "background:rgba(0,0,0,0.5);padding:5px 10px;" +
-                        "border-radius:5px;cursor:pointer;pointer-events:auto;';" +
-                    "  var h=function(e){e.preventDefault();e.stopPropagation();" +
-                    "    if(window.AndroidBridge)window.AndroidBridge.openPrivacyPolicy();};" +
-                    "  btn.addEventListener('click',h,true);" +
-                    "  btn.addEventListener('touchstart',h,true);" +
-                    "  document.body.appendChild(btn);" +
-                    "})();"
-                );
-            }
         });
 
         webView.loadUrl("https://appassets.androidplatform.net/assets/game/index.html");
@@ -142,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
         MobileAds.initialize(this, () -> {
             Log.d(TAG, "Yandex Ads initialized");
             mainHandler.post(() -> {
-                loadInterstitial(); // preload immediately so it's ready before first death
+                loadInterstitial();
                 loadBanner();
             });
         });
@@ -150,13 +139,6 @@ public class MainActivity extends AppCompatActivity {
 
     // ── Interstitial ─────────────────────────────────────────────────────────
 
-    /**
-     * Pre-loads the next interstitial ad in the background.
-     * Called on init, and immediately after every close/fail so there is always
-     * an ad sitting ready in memory before the player next dies — the same
-     * pattern the old AdMob build used, which is why that one never had a
-     * show-time delay or freeze.
-     */
     private void loadInterstitial() {
         InterstitialAdLoader loader = new InterstitialAdLoader(this);
         loader.setAdLoadListener(new InterstitialAdLoadListener() {
@@ -166,20 +148,19 @@ public class MainActivity extends AppCompatActivity {
                 interstitialAd = ad;
                 interstitialAd.setAdEventListener(new InterstitialAdEventListener() {
                     @Override public void onAdShown() {
-                        Log.d(TAG, "Interstitial shown");
                         fireJs("if(window.onInterstitialAdShown) window.onInterstitialAdShown();");
                     }
                     @Override public void onAdFailedToShow(AdError error) {
                         Log.w(TAG, "Interstitial failed to show: " + error.getDescription());
                         interstitialAd = null;
                         fireJs("if(window.onInterstitialAdFailed) window.onInterstitialAdFailed();");
-                        loadInterstitial(); // preload next immediately
+                        loadInterstitial();
                     }
                     @Override public void onAdDismissed() {
                         Log.d(TAG, "Interstitial dismissed");
                         interstitialAd = null;
                         fireJs("if(window.onInterstitialAdClosed) window.onInterstitialAdClosed();");
-                        loadInterstitial(); // preload next immediately
+                        loadInterstitial();
                     }
                     @Override public void onAdClicked() {}
                     @Override public void onAdImpression(@Nullable ImpressionData data) {}
@@ -190,7 +171,6 @@ public class MainActivity extends AppCompatActivity {
             public void onAdFailedToLoad(AdRequestError error) {
                 Log.w(TAG, "Interstitial failed to load: " + error.getDescription());
                 interstitialAd = null;
-                // Retry after 30 s so we're ready well before the next death
                 mainHandler.postDelayed(MainActivity.this::loadInterstitial, 30_000);
             }
         });
@@ -202,16 +182,14 @@ public class MainActivity extends AppCompatActivity {
             if (interstitialAd != null) {
                 interstitialAd.show(this);
             } else {
-                // Ad not ready yet — tell JS immediately so the game keeps moving.
                 Log.d(TAG, "Interstitial not ready, failing gracefully");
                 fireJs("if(window.onInterstitialAdFailed) window.onInterstitialAdFailed();");
-                loadInterstitial(); // kick off a fresh load for next time
+                loadInterstitial();
             }
         });
     }
 
     void showRewardedAd() {
-        // Not implemented — fail gracefully so the game never gets stuck.
         fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
     }
 

@@ -1,77 +1,53 @@
 plugins {
-      id 'com.android.application'
+    id 'com.android.application'
+}
+
+android {
+    compileSdk 34
+    namespace 'com.roadrunner.game'
+
+    defaultConfig {
+        applicationId "com.roadrunner.game"
+        minSdk 21
+        targetSdk 34
+        versionCode 17
+        versionName "3.0"
     }
 
-    // Exclude AdMob and its dependencies from ALL configurations (transitive too).
-    // Confirmed: bringing back the Play Services ads/measurement libs to enable
-    // Appodeal's CMP causes an immediate crash on launch and freezes/fast-forwards
-    // gameplay while the CMP dialog blocks the WebView. Reverted - full exclusion
-    // stays in place; CMP will not be handled via these libs.
-    configurations.all {
-      exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
-      exclude group: 'com.google.android.gms', module: 'play-services-ads'
-      exclude group: 'com.google.android.gms', module: 'play-services-ads-base'
-      exclude group: 'com.google.android.gms', module: 'play-services-measurement-api'
-      exclude group: 'com.google.android.gms', module: 'play-services-measurement'
-      exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("KEYSTORE_PATH") ?: "keystore.jks")
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
+            keyAlias System.getenv("KEY_ALIAS") ?: ""
+            keyPassword System.getenv("KEY_PASSWORD") ?: ""
+        }
     }
 
-    android {
-      compileSdk 34
-      namespace 'com.roadrunner.game'
-
-      defaultConfig {
-          applicationId "com.roadrunner.game"
-          minSdk 21
-          targetSdk 34
-          versionCode 16
-          versionName "2.5"
-      }
-
-      signingConfigs {
-          release {
-              storeFile file(System.getenv("KEYSTORE_PATH") ?: "keystore.jks")
-              storePassword System.getenv("KEYSTORE_PASSWORD") ?: ""
-              keyAlias System.getenv("KEY_ALIAS") ?: ""
-              keyPassword System.getenv("KEY_PASSWORD") ?: ""
-          }
-      }
-
-      buildTypes {
-          release {
-              minifyEnabled false
-              shrinkResources false
-              signingConfig signingConfigs.release
-          }
-          debug {
-              applicationIdSuffix ".debug"
-          }
-      }
-
-      compileOptions {
-          sourceCompatibility JavaVersion.VERSION_11
-          targetCompatibility JavaVersion.VERSION_11
-      }
-
-      packagingOptions {
-          exclude 'META-INF/LICENSE'
-          exclude 'META-INF/LICENSE.txt'
-      }
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            applicationIdSuffix ".debug"
+        }
     }
 
-    dependencies {
-      implementation 'androidx.appcompat:appcompat:1.6.1'
-      implementation 'androidx.webkit:webkit:1.9.0'
-
-      // Appodeal Full SDK - AdMob excluded via configurations.all above AND inline below.
-      // The full SDK provides all core classes (Appodeal, callbacks, etc.)
-      // Do NOT add individual network adapters separately - they are already inside the
-      // full SDK bundle. Adding them again causes duplicate class conflicts and crashes.
-      implementation('com.appodeal.ads:sdk:3.3.1.0') {
-          exclude group: 'com.appodeal.ads.sdk.networks', module: 'admob'
-          exclude group: 'com.google.android.gms', module: 'play-services-ads'
-          exclude group: 'com.google.android.gms', module: 'play-services-measurement-api'
-          exclude group: 'com.appodeal.ads.sdk.networks', module: 'yandex'
-      }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
-    
+
+    packagingOptions {
+        exclude 'META-INF/LICENSE'
+        exclude 'META-INF/LICENSE.txt'
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.webkit:webkit:1.9.0'
+    // Yandex Mobile Ads SDK — available on Maven Central, no extra repo needed
+    implementation 'com.yandex.android:mobileads:7.4.0'
+}

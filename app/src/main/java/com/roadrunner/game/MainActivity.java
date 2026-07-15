@@ -193,6 +193,10 @@ public class MainActivity extends AppCompatActivity {
         fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
     }
 
+    // MREC (Medium Rectangle) not used with Yandex — stub so AndroidBridge compiles.
+    void showMREC() {}
+    void hideMREC() {}
+
     // ── Banner ───────────────────────────────────────────────────────────────
 
     private void loadBanner() {

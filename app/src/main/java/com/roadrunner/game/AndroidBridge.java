@@ -37,16 +37,6 @@ public class AndroidBridge {
         activity.showRewardedAd();
     }
 
-    @JavascriptInterface
-    public void showMREC() {
-        activity.showMREC();
-    }
-
-    @JavascriptInterface
-    public void hideMREC() {
-        activity.hideMREC();
-    }
-
     /**
      * Opens the Privacy Policy page in the device browser.
      * No URL parameter — the destination is a trusted constant in MainActivity,

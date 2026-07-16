@@ -35,9 +35,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Extract game assets
-        run: tar -xzf app/src/main/assets/game-assets.tar.gz -C app/src/main/assets/
-
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}

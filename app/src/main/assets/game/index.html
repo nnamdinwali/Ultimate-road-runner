@@ -40,26 +40,6 @@
             user-select: none;
         }
 
-        /* ── Privacy Policy button — small, bottom-right corner ── */
-        #_pp_btn {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            z-index: 9999;
-            pointer-events: none; /* touch handled via capture listener */
-        }
-        #_pp_btn_inner {
-            background: rgba(0,0,0,0.55);
-            border: 1.5px solid rgba(255,255,255,0.35);
-            border-radius: 10px;
-            color: rgba(255,255,255,0.80);
-            font-size: 11px;
-            font-family: sans-serif;
-            padding: 5px 10px;
-            white-space: nowrap;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-        }
     </style>
     <script type="text/javascript">
 
@@ -148,8 +128,8 @@
         /* ── Native → JS callbacks ─────────────────────────────────────────── */
         window.onInterstitialAdLoaded   = function() { _adEmitter.emit('interstitial_state_changed', 'loaded'); };
         window.onInterstitialAdShown    = function() { _adEmitter.emit('interstitial_state_changed', 'opened'); };
-        window.onInterstitialAdClosed   = function() { _unmuteAfterAd(); _callNative('showMREC'); _adEmitter.emit('interstitial_state_changed', 'closed'); };
-        window.onInterstitialAdFailed   = function() { _unmuteAfterAd(); _callNative('showMREC'); _adEmitter.emit('interstitial_state_changed', 'failed'); };
+        window.onInterstitialAdClosed   = function() { _unmuteAfterAd(); _adEmitter.emit('interstitial_state_changed', 'closed'); };
+        window.onInterstitialAdFailed   = function() { _unmuteAfterAd(); _adEmitter.emit('interstitial_state_changed', 'failed'); };
         window.onRewardedAdLoaded       = function() { _adEmitter.emit('rewarded_state_changed', 'loaded'); };
         window.onRewardedAdShown        = function() { _adEmitter.emit('rewarded_state_changed', 'opened'); };
         window.onRewardedAdRewarded     = function() {
@@ -165,7 +145,6 @@
         };
         window.onRewardedAdClosed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'closed'); };
         window.onRewardedAdFailed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'failed'); };
-        window.onMRECAdShown            = function() { _adEmitter.emit('mrec_state_changed', 'shown'); };
         window.onBannerAdShown          = function() { _adEmitter.emit('banner_state_changed', 'shown'); };
         window.onBannerAdHidden         = function() { _adEmitter.emit('banner_state_changed', 'hidden'); };
 
@@ -235,7 +214,6 @@
             window.gmOnDeath = function(runtimeScene) {
                 _origOnDeath && _origOnDeath(runtimeScene);
                 window._pgSaveProgress && window._pgSaveProgress();
-                _callNative('hideMREC');
 
                 /* Show Watch-Ad button with reward = 5× coins earned this run */
                 var runCoins = Math.max(_getCoins() - _coinsAtRunStart, 0);
@@ -422,11 +400,6 @@
         </div>
     </div>
 
-    <!-- Privacy Policy button — always visible, bottom-right corner -->
-    <div id="_pp_btn">
-        <div id="_pp_btn_inner">&#128274; Privacy Policy</div>
-    </div>
-
     <script>
     (function() {
         var game = new gdjs.RuntimeGame(gdjs.projectData, {});
@@ -441,7 +414,6 @@
             (function() {
                 var _rsc = gdjs.evtTools.runtimeScene.replaceScene;
                 gdjs.evtTools.runtimeScene.replaceScene = function(scene, name, clearOthers) {
-                    _callNative('hideMREC');
                     _hideWrBtn();
                     _coinsAtRunStart = _getCoins(); /* snapshot for next run */
                     return _rsc.call(this, scene, name, clearOthers);
@@ -532,20 +504,6 @@
             setTimeout(hideMuteButton, 800);
 
             /* ── Touch capture — fires BEFORE game canvas absorbs the touch ── */
-
-            /* Privacy Policy button */
-            document.addEventListener('touchstart', function(e) {
-                var btn = document.getElementById('_pp_btn');
-                if (!btn) return;
-                var rect = btn.getBoundingClientRect();
-                var t = e.changedTouches[0];
-                if (t.clientX >= rect.left && t.clientX <= rect.right &&
-                    t.clientY >= rect.top  && t.clientY <= rect.bottom) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (window.AndroidBridge) window.AndroidBridge.openPrivacyPolicy();
-                }
-            }, { capture: true, passive: false });
 
             /* Watch Ad button */
             document.addEventListener('touchstart', function(e) {

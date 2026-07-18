@@ -10,6 +10,7 @@
     <style>
         body { margin: 0; padding: 0; background-color: #000000; overflow: hidden; }
         #canvasArea { margin-left: auto; margin-right: auto; overflow: hidden; }
+
     </style>
     <script type="text/javascript">
 
@@ -24,9 +25,7 @@
         };
         window.gmHideReviveButton = function() {};
 
-        /* ── Minimal bridge stub — keeps game code happy, no real ads ──────
-           The game references window.bridge for storage and events.
-           Ad methods are stubs that do nothing.                             */
+        /* ── bridge stub — no ads active ──────────────────────────────────── */
         var _adEmitter = (function() {
             var listeners = {};
             return {
@@ -60,11 +59,11 @@
             },
             platform: { on: function() {}, sendMessage: function() {} },
             EVENT_NAME: {
-                PAUSE_STATE_CHANGED:         'pause_state_changed',
-                AUDIO_STATE_CHANGED:         'audio_state_changed',
-                INTERSTITIAL_STATE_CHANGED:  'interstitial_state_changed',
-                BANNER_STATE_CHANGED:        'banner_state_changed',
-                REWARDED_STATE_CHANGED:      'rewarded_state_changed'
+                PAUSE_STATE_CHANGED:        'pause_state_changed',
+                AUDIO_STATE_CHANGED:        'audio_state_changed',
+                INTERSTITIAL_STATE_CHANGED: 'interstitial_state_changed',
+                BANNER_STATE_CHANGED:       'banner_state_changed',
+                REWARDED_STATE_CHANGED:     'rewarded_state_changed'
             }
         };
 
@@ -96,10 +95,6 @@
                 window._pgSaveProgress && window._pgSaveProgress();
             };
         };
-
-        document.addEventListener('visibilitychange', function() {
-            /* nothing to mute/unmute — no ads */
-        });
 
     </script>
 
@@ -193,21 +188,68 @@
     <script src="Extensions/PanelSpriteObject/panelspriteruntimeobject.js" crossorigin="anonymous"></script>
     <script src="Extensions/PlayerAuthentication/playerauthenticationcomponents.js" crossorigin="anonymous"></script>
     <script src="Extensions/PlayerAuthentication/playerauthenticationtools.js" crossorigin="anonymous"></script>
-    <script src="Extensions/Shopify/shopifytools.js" crossorigin="anonymous"></script>
+    <script src="Extensions/PrimitiveDrawing/pixi-graphics-extras/graphics-extras.min.js" crossorigin="anonymous"></script>
+    <script src="Extensions/PrimitiveDrawing/shapepainterruntimeobject-pixi-renderer.js" crossorigin="anonymous"></script>
+    <script src="Extensions/PrimitiveDrawing/shapepainterruntimeobject.js" crossorigin="anonymous"></script>
+    <script src="Extensions/SystemInfo/systeminfotools.js" crossorigin="anonymous"></script>
     <script src="Extensions/TextObject/textruntimeobject-pixi-renderer.js" crossorigin="anonymous"></script>
     <script src="Extensions/TextObject/textruntimeobject.js" crossorigin="anonymous"></script>
-    <script src="Extensions/TweenBehavior/shifty.js" crossorigin="anonymous"></script>
+    <script src="Extensions/TweenBehavior/TweenManager.js" crossorigin="anonymous"></script>
     <script src="Extensions/TweenBehavior/tweenruntimebehavior.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/TiledPlane3DRuntimeObject.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/TiledPlane3DRuntimeObject3DRenderer.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/Plane3DRuntimeObject.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/Plane3DRuntimeObject3DRenderer.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/Sprite3DRuntimeObject.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/Sprite3DRuntimeObject3DRenderer.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/Text3DRuntimeObject.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/Text3DRuntimeObject3DRenderer.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/Lighting3DRuntimeObject.js" crossorigin="anonymous"></script>
-    <script src="Extensions/3D/Lighting3DRuntimeObject3DRenderer.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__buttonstates__buttonfsm.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__gridjump3d__gridjump3d.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__linearmovement__linearmovementbyangle.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__panelspritebutton__buttonfsm.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__panelspritebutton__isingameedition-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__panelspritebutton__panelspritebutton.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__panelspriteslider__buttonfsm.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__panelspriteslider__isingameedition-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__panelspriteslider__panelspriteslider.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__panelspriteslider__slider.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__repeateveryxseconds__deletetimer-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__repeateveryxseconds__repeat-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__repeateveryxseconds__repeatxtimes-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__repeateveryxseconds__repetition-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__screenorientationchecker__isingameedition-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__screenorientationchecker__onfirstsceneloaded-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__screenorientationchecker__projectorientation-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__screenorientationchecker__screenorientationchecker.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__smoothcamera__smoothcamera.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__sticker__definehelperclasses-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__sticker__isstuck-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__sticker__sticker.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__angle-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__distance-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__distancex-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__distancey-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__drawswipe-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__duration-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__enableswipedetection-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__endx-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__endy-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__hasswipejustended-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__isswipedetectionenabled-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__isswipeinprogress-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__layer-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__onscenepreevents-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__setlayer-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__startx-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__starty-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__swipedirection_4way-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__swipegesture__swipedirection_8way-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__thirdpersoncamera__lookfromdistanceatobject-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__thirdpersoncamera__lookfromdistanceatobject3d-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__thirdpersoncamera__lookfromdistanceatposition-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__thirdpersoncamera__lookfromdistanceatposition3d-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__thirdpersoncamera__rotatedx-func.js" crossorigin="anonymous"></script>
+    <script src="gdjs-evtsext__thirdpersoncamera__rotatedy-func.js" crossorigin="anonymous"></script>
+    <script src="object-capabilities/AnimatableBehavior.js" crossorigin="anonymous"></script>
+    <script src="object-capabilities/EffectBehavior.js" crossorigin="anonymous"></script>
+    <script src="object-capabilities/FlippableBehavior.js" crossorigin="anonymous"></script>
+    <script src="object-capabilities/OpacityBehavior.js" crossorigin="anonymous"></script>
+    <script src="object-capabilities/ResizableBehavior.js" crossorigin="anonymous"></script>
+    <script src="object-capabilities/ScalableBehavior.js" crossorigin="anonymous"></script>
+    <script src="object-capabilities/TextContainerBehavior.js" crossorigin="anonymous"></script>
     <script src="Extensions/3D/DirectionalLight.js" crossorigin="anonymous"></script>
     <script src="Extensions/3D/HemisphereLight.js" crossorigin="anonymous"></script>
     <script src="code0.js?v=6" crossorigin="anonymous"></script>
@@ -223,6 +265,7 @@
         game.loadAllAssets(function() {
             game.startGameLoop();
             window._startAdTimers();
+
 
             /* Load saved progress */
             bridge.storage.get(['CoinsCount','Highscore','SelectedCharacter','OwningCharacters','Volume'])

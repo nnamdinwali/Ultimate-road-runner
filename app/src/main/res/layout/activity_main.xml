@@ -9,37 +9,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Banner ad sits at the bottom, above the WebView layer.
-         A close (✕) button overlays the top-right corner so users can dismiss
-         the banner at any time — required by Huawei AppGallery review policy. -->
-    <FrameLayout
-        android:id="@+id/bannerContainer"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:visibility="gone">
-
-        <!-- The BannerAdView is added here programmatically in MainActivity -->
-
-        <TextView
-            android:id="@+id/bannerCloseBtn"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_gravity="top|end"
-            android:background="#CC000000"
-            android:gravity="center"
-            android:text="✕"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp"
-            android:clickable="true"
-            android:focusable="true"
-            android:elevation="4dp" />
-
-    </FrameLayout>
-
     <!-- Privacy Policy button is a NATIVE view — GDevelop's WebView canvas
-         cannot intercept touch events on views that are siblings/parents of
-         the WebView in the native view hierarchy. -->
+         cannot intercept touch events on sibling views in the native hierarchy. -->
     <TextView
         android:id="@+id/privacyPolicyBtn"
         android:layout_width="wrap_content"

@@ -32,11 +32,6 @@ public class AndroidBridge {
         activity.showInterstitialAd();
     }
 
-    @JavascriptInterface
-    public void showRewardedAd() {
-        activity.showRewardedAd();
-    }
-
     /**
      * Opens the Privacy Policy page in the device browser.
      * No URL parameter — the destination is a trusted constant in MainActivity,

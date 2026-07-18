@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         initWebView();
         initPrivacyPolicyButton(); // native view — GDevelop cannot steal its clicks
+        initBannerCloseButton();   // lets users dismiss the banner (Huawei policy)
         initYandex();
     }
 
@@ -93,6 +94,12 @@ public class MainActivity extends AppCompatActivity {
         TextView btn = findViewById(R.id.privacyPolicyBtn);
         if (btn == null) return;
         btn.setOnClickListener(v -> openPrivacyPolicy());
+    }
+
+    private void initBannerCloseButton() {
+        TextView closeBtn = findViewById(R.id.bannerCloseBtn);
+        if (closeBtn == null) return;
+        closeBtn.setOnClickListener(v -> hideBanner());
     }
 
     // ── WebView setup ────────────────────────────────────────────────────────
@@ -187,10 +194,6 @@ public class MainActivity extends AppCompatActivity {
                 loadInterstitial();
             }
         });
-    }
-
-    void showRewardedAd() {
-        fireJs("if(window.onRewardedAdFailed) window.onRewardedAdFailed();");
     }
 
     // ── Banner ───────────────────────────────────────────────────────────────

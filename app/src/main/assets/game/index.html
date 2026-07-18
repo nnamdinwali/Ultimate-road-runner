@@ -11,35 +11,6 @@
         body { margin: 0; padding: 0; background-color: #000000; overflow: hidden; }
         #canvasArea { margin-left: auto; margin-right: auto; overflow: hidden; }
 
-        /* ── Watch-Ad jelly button — matches Retry / Submit Score style ── */
-        #_wr_btn {
-            display: none;
-            position: fixed;
-            bottom: 22%;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            flex-direction: column;
-            align-items: center;
-            pointer-events: none; /* touch handled via capture listener */
-        }
-        #_wr_btn_inner {
-            background: linear-gradient(to bottom, #FFE566 0%, #FFB300 55%, #FF8C00 100%);
-            border: 3px solid #7A4100;
-            border-radius: 22px;
-            box-shadow: 0 7px 0 #7A4100, 0 10px 22px rgba(0,0,0,0.55);
-            color: #FFFFFF;
-            font-size: 17px;
-            font-weight: 900;
-            font-family: sans-serif;
-            text-shadow: 1px 2px 4px rgba(0,0,0,0.65);
-            padding: 13px 30px;
-            letter-spacing: 0.4px;
-            white-space: nowrap;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-        }
-
     </style>
     <script type="text/javascript">
 
@@ -93,58 +64,11 @@
             }
         }
 
-        /* ── Coin helpers for rewarded ad ─────────────────────────────────── */
-        var _coinsAtRunStart = 0;
-        var _wrbtnClaimed    = false;
-
-        function _getCoins() {
-            try {
-                var stack = window._gmGame && window._gmGame._sceneStack && window._gmGame._sceneStack._stack;
-                if (!stack || !stack.length) return 0;
-                return stack[0].getVariables().get('CoinsCount').getAsNumber() || 0;
-            } catch(e) { return 0; }
-        }
-        function _addCoins(amount) {
-            try {
-                var stack = window._gmGame && window._gmGame._sceneStack && window._gmGame._sceneStack._stack;
-                if (!stack || !stack.length) return;
-                var v = stack[0].getVariables().get('CoinsCount');
-                v.setNumber(v.getAsNumber() + amount);
-            } catch(e) {}
-        }
-        function _showWrBtn(reward) {
-            var btn = document.getElementById('_wr_btn');
-            if (!btn) return;
-            var lbl = document.getElementById('_wr_label');
-            if (lbl) lbl.textContent = '\uD83C\uDFAC Watch Ad  +' + reward + ' Coins';
-            btn._rewardAmount = reward;
-            btn.style.display = 'flex';
-        }
-        function _hideWrBtn() {
-            var btn = document.getElementById('_wr_btn');
-            if (btn) btn.style.display = 'none';
-        }
-
         /* ── Native → JS callbacks ─────────────────────────────────────────── */
         window.onInterstitialAdLoaded   = function() { _adEmitter.emit('interstitial_state_changed', 'loaded'); };
         window.onInterstitialAdShown    = function() { _adEmitter.emit('interstitial_state_changed', 'opened'); };
         window.onInterstitialAdClosed   = function() { _unmuteAfterAd(); _adEmitter.emit('interstitial_state_changed', 'closed'); };
         window.onInterstitialAdFailed   = function() { _unmuteAfterAd(); _adEmitter.emit('interstitial_state_changed', 'failed'); };
-        window.onRewardedAdLoaded       = function() { _adEmitter.emit('rewarded_state_changed', 'loaded'); };
-        window.onRewardedAdShown        = function() { _adEmitter.emit('rewarded_state_changed', 'opened'); };
-        window.onRewardedAdRewarded     = function() {
-            _adEmitter.emit('rewarded_state_changed', 'rewarded');
-            if (!_wrbtnClaimed) {
-                _wrbtnClaimed = true;
-                var btn = document.getElementById('_wr_btn');
-                var reward = (btn && btn._rewardAmount) ? btn._rewardAmount : 5;
-                _addCoins(reward);
-                window._pgSaveProgress && window._pgSaveProgress();
-                _hideWrBtn();
-            }
-        };
-        window.onRewardedAdClosed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'closed'); };
-        window.onRewardedAdFailed       = function() { _unmuteAfterAd(); _adEmitter.emit('rewarded_state_changed', 'failed'); };
         window.onBannerAdShown          = function() { _adEmitter.emit('banner_state_changed', 'shown'); };
         window.onBannerAdHidden         = function() { _adEmitter.emit('banner_state_changed', 'hidden'); };
 
@@ -153,7 +77,7 @@
             advertisement: {
                 isInterstitialSupported: true,
                 isBannerSupported: true,
-                isRewardedSupported: true,
+                isRewardedSupported: false,
                 on: function(event, cb) { _adEmitter.on(event, cb); },
                 setMinimumDelayBetweenInterstitial: function() {},
                 showInterstitial: function() {
@@ -161,11 +85,7 @@
                     if (!_callNative('showInterstitialAd')) { window.onInterstitialAdFailed(); }
                 },
                 showBanner: function() { _callNative('showBanner'); },
-                hideBanner: function() { _callNative('hideBanner'); },
-                showRewarded: function() {
-                    _muteForAd();
-                    if (!_callNative('showRewardedAd')) { window.onRewardedAdFailed(); }
-                }
+                hideBanner: function() { _callNative('hideBanner'); }
             },
             storage: {
                 get: function(keys) {
@@ -184,7 +104,7 @@
                 AUDIO_STATE_CHANGED: 'audio_state_changed',
                 INTERSTITIAL_STATE_CHANGED: 'interstitial_state_changed',
                 BANNER_STATE_CHANGED: 'banner_state_changed',
-                REWARDED_STATE_CHANGED: 'rewarded_state_changed'
+                REWARDED_STATE_CHANGED: 'rewarded_state_changed' /* stub — rewarded ads not active */
             }
         };
 
@@ -214,13 +134,6 @@
             window.gmOnDeath = function(runtimeScene) {
                 _origOnDeath && _origOnDeath(runtimeScene);
                 window._pgSaveProgress && window._pgSaveProgress();
-
-                /* Show Watch-Ad button with reward = 5× coins earned this run */
-                var runCoins = Math.max(_getCoins() - _coinsAtRunStart, 0);
-                var reward   = Math.max(runCoins * 5, 5);
-                _wrbtnClaimed = false;
-                _showWrBtn(reward);
-
                 try { bridge.advertisement.showInterstitial(); } catch(e) {}
             };
             setTimeout(function() {
@@ -393,13 +306,6 @@
     <script src="data.js?v=6" crossorigin="anonymous"></script>
 </head>
 <body>
-    <!-- Watch Ad button — shown on death screen, hidden at all other times -->
-    <div id="_wr_btn">
-        <div id="_wr_btn_inner">
-            <span id="_wr_label">&#127916; Watch Ad  +5 Coins</span>
-        </div>
-    </div>
-
     <script>
     (function() {
         var game = new gdjs.RuntimeGame(gdjs.projectData, {});
@@ -410,15 +316,6 @@
             game.startGameLoop();
             window._startAdTimers();
 
-            /* Capture run-start coins and hide Watch-Ad button on Retry */
-            (function() {
-                var _rsc = gdjs.evtTools.runtimeScene.replaceScene;
-                gdjs.evtTools.runtimeScene.replaceScene = function(scene, name, clearOthers) {
-                    _hideWrBtn();
-                    _coinsAtRunStart = _getCoins(); /* snapshot for next run */
-                    return _rsc.call(this, scene, name, clearOthers);
-                };
-            })();
 
             /* Load saved progress */
             bridge.storage.get(['CoinsCount','Highscore','SelectedCharacter','OwningCharacters','Volume'])
@@ -444,8 +341,6 @@
                             vars.get('Volume').setNumber(vol);
                             try { gdjs.evtTools.sound.setGlobalVolume(stack[0], vol); } catch(ve) {}
                         }
-                        /* Snapshot coins at game start so first-run reward is accurate */
-                        _coinsAtRunStart = _getCoins();
                     } catch(e) {}
                 });
 
@@ -502,25 +397,6 @@
                 setTimeout(hideMuteButton, 500);
             }
             setTimeout(hideMuteButton, 800);
-
-            /* ── Touch capture — fires BEFORE game canvas absorbs the touch ── */
-
-            /* Watch Ad button */
-            document.addEventListener('touchstart', function(e) {
-                var btn = document.getElementById('_wr_btn');
-                if (!btn || btn.style.display === 'none') return;
-                var rect = btn.getBoundingClientRect();
-                var t = e.changedTouches[0];
-                if (t.clientX >= rect.left && t.clientX <= rect.right &&
-                    t.clientY >= rect.top  && t.clientY <= rect.bottom) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (!_wrbtnClaimed) {
-                        _hideWrBtn(); /* hide while ad plays */
-                        bridge.advertisement.showRewarded();
-                    }
-                }
-            }, { capture: true, passive: false });
 
         });
     })();

@@ -347,34 +347,33 @@
             game.startGameLoop();
             window._startAdTimers();
             /* ── Difficulty progression ─────────────────────────────────────
-               Cars start slow (speed 200) and get faster as the chicken's
-               score increases, capping at speed 480.
-               Score 0  → 200 px/s  (nice and easy)
-               Score 10 → 230 px/s
-               Score 20 → 260 px/s
-               Score 40 → 320 px/s
-               Score 60 → 380 px/s
-               Score 80 → 440 px/s
-               Score 100+ → 480 px/s (max challenge)
-               Updated every 200 ms so newly spawned cars pick up the
-               correct speed within one tick.
+               Cars start SLOW and only begin to speed up once the player
+               passes score 25 — giving a generous warm-up window.
+               The climb is gradual so reaching 150 feels earned:
+
+               Score   0–24 → 100 px/s  (easy start)
+               Score     25 → 100 px/s  (ramp begins)
+               Score     50 → 140 px/s
+               Score     75 → 180 px/s
+               Score    100 → 220 px/s
+               Score    125 → 260 px/s
+               Score    150 → 300 px/s  ← milestone, then capped
             ── */
             (function() {
-                var CAR_NAMES  = ['Car1','Car2','Car3','Car4','Car5'];
-                var BASE_SPEED = 200;   // speed at score 0
-                var MAX_SPEED  = 480;   // hard cap
-                var STEP_SCORE = 5;     // score units per speed step
-                var STEP_SPEED = 15;    // speed added per step
+                var CAR_NAMES     = ['Car1','Car2','Car3','Car4','Car5'];
+                var BASE_SPEED    = 100;   // speed before score 25
+                var MAX_SPEED     = 300;   // cap reached at score ~150
+                var RAMP_START    = 25;    // score at which speed begins to rise
+                var STEP_SCORE    = 5;     // score points per speed step
+                var SPEED_PER_STEP = 8;    // px/s added per step
                 setInterval(function() {
                     try {
                         var stack = game._sceneStack && game._sceneStack._stack;
                         if (!stack || !stack.length) return;
                         var scene = stack[0];
                         var score = scene.getScene().getVariables().getFromIndex(2).getAsNumber();
-                        var newSpeed = Math.min(
-                            BASE_SPEED + Math.floor(score / STEP_SCORE) * STEP_SPEED,
-                            MAX_SPEED
-                        );
+                        var steps = Math.max(0, Math.floor((score - RAMP_START) / STEP_SCORE));
+                        var newSpeed = Math.min(BASE_SPEED + steps * SPEED_PER_STEP, MAX_SPEED);
                         for (var c = 0; c < CAR_NAMES.length; c++) {
                             var cars = scene.getObjects(CAR_NAMES[c]);
                             if (!cars) continue;

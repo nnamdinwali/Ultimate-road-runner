@@ -32,6 +32,16 @@ public class AndroidBridge {
         activity.openPrivacyPolicy();
     }
 
+    // ── Banner Ad ────────────────────────────────────────────────────────────
+
+    /** Show the bottom banner — JS calls this when active gameplay is detected. */
+    @JavascriptInterface
+    public void showBanner() { activity.showBanner(); }
+
+    /** Hide the bottom banner — JS calls this on Menu / Game Over / Shop / Settings. */
+    @JavascriptInterface
+    public void hideBanner() { activity.hideBanner(); }
+
     // ── Interstitial Ad ──────────────────────────────────────────────────────
 
     /**

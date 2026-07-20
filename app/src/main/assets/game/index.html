@@ -97,6 +97,8 @@
                 vars.get('CoinsCount').setNumber(current + 1);
                 window._pgSaveProgress && window._pgSaveProgress();
             } catch(e) {}
+            // One reward per run — hide the button immediately after watching
+            window._hideWatchAdBtn && window._hideWatchAdBtn();
         };
 
         /* ── On-death hook — save progress + show interstitial ad ───────────── */
@@ -124,17 +126,46 @@
                 window._showWatchAdBtn && window._showWatchAdBtn();
             };
 
-            // Poll every 150ms — hide Watch-Ad button when Game Over layer disappears (Retry tapped)
+            // Poll every 200ms for two jobs:
+            //   1. Hide Watch-Ad button when Game Over layer disappears (Retry tapped)
+            //   2. Show banner ONLY during active gameplay; hide on Menu/Game Over/Shop/Settings
+            var _bannerShown = false;
+            var UI_LAYERS = ["Menu", "Game Over", "Shop", "Settings"];
             setInterval(function() {
                 try {
                     var stack = window._gmGame && window._gmGame._sceneStack && window._gmGame._sceneStack._stack;
                     if (!stack || !stack.length) return;
-                    var layer = stack[0].getLayer("Game Over");
-                    if (layer && !layer.isVisible()) {
-                        window._hideWatchAdBtn && window._hideWatchAdBtn();
+                    var scene = stack[0];
+
+                    // 1. Watch-Ad button: hide once Game Over layer is gone
+                    try {
+                        var goLayer = scene.getLayer("Game Over");
+                        if (goLayer && !goLayer.isVisible()) {
+                            window._hideWatchAdBtn && window._hideWatchAdBtn();
+                        }
+                    } catch(e2) {}
+
+                    // 2. Banner: hide on any UI screen, show during active gameplay only
+                    var anyUI = false;
+                    for (var i = 0; i < UI_LAYERS.length; i++) {
+                        try {
+                            var l = scene.getLayer(UI_LAYERS[i]);
+                            if (l && l.isVisible()) { anyUI = true; break; }
+                        } catch(e3) {}
+                    }
+                    if (anyUI && _bannerShown) {
+                        _bannerShown = false;
+                        if (window.AndroidBridge && typeof window.AndroidBridge.hideBanner === 'function') {
+                            window.AndroidBridge.hideBanner();
+                        }
+                    } else if (!anyUI && !_bannerShown) {
+                        _bannerShown = true;
+                        if (window.AndroidBridge && typeof window.AndroidBridge.showBanner === 'function') {
+                            window.AndroidBridge.showBanner();
+                        }
                     }
                 } catch(e) {}
-            }, 150);
+            }, 200);
         };
 
         /* ── Rewarded ad trigger — called from GDevelop "watch ad" button ──── */

@@ -173,8 +173,8 @@ public class MainActivity extends AppCompatActivity {
         bannerAdView.setBannerAdEventListener(new BannerAdEventListener() {
             @Override
             public void onAdLoaded() {
-                bannerAdView.setVisibility(View.VISIBLE);
-                Log.d(TAG, "Banner loaded");
+                // Stay hidden — JS layer-poller calls showBanner() only during gameplay
+                Log.d(TAG, "Banner loaded and ready");
             }
             @Override
             public void onAdFailedToLoad(@NonNull AdRequestError error) {
@@ -188,6 +188,16 @@ public class MainActivity extends AppCompatActivity {
         });
 
         bannerAdView.loadAd(new AdRequest.Builder().build());
+    }
+
+    // ── Banner show / hide (called from JS via AndroidBridge) ────────────────
+
+    void showBanner() {
+        runOnUiThread(() -> { if (bannerAdView != null) bannerAdView.setVisibility(View.VISIBLE); });
+    }
+
+    void hideBanner() {
+        runOnUiThread(() -> { if (bannerAdView != null) bannerAdView.setVisibility(View.GONE); });
     }
 
     // ── Interstitial Ad ──────────────────────────────────────────────────────

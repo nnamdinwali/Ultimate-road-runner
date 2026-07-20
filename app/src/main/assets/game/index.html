@@ -347,25 +347,28 @@
             game.startGameLoop();
             window._startAdTimers();
             /* ── Difficulty progression ─────────────────────────────────────
-               Cars start SLOW and only begin to speed up once the player
-               passes score 25 — giving a generous warm-up window.
-               The climb is gradual so reaching 150 feels earned:
+               Speed stays flat until score 25, then climbs +16 every
+               5 score points — KEEPS climbing past 150 (no early cap).
+               Score 150 is a milestone, not the ceiling.
 
                Score   0–24 → 100 px/s  (easy start)
-               Score     25 → 100 px/s  (ramp begins)
                Score     50 → 180 px/s
                Score     75 → 260 px/s
                Score    100 → 340 px/s
                Score    125 → 420 px/s
-               Score    150 → 500 px/s  ← milestone cap
+               Score    150 → 500 px/s  (milestone)
+               Score    175 → 580 px/s
+               Score    200 → 660 px/s
+               Score    225 → 740 px/s
+               Score    244 → 800 px/s  (hard cap)
             ── */
             (function() {
                 var CAR_NAMES      = ['Car1','Car2','Car3','Car4','Car5'];
-                var BASE_SPEED     = 100;   // speed before score 25
-                var MAX_SPEED      = 500;   // cap reached exactly at score 150
-                var RAMP_START     = 25;    // score at which speed begins to rise
-                var STEP_SCORE     = 5;     // score points per speed step
-                var SPEED_PER_STEP = 16;    // px/s added per step (hits 500 at score 150)
+                var BASE_SPEED     = 100;
+                var MAX_SPEED      = 800;   // true ceiling — far past score 150
+                var RAMP_START     = 25;
+                var STEP_SCORE     = 5;
+                var SPEED_PER_STEP = 16;
                 setInterval(function() {
                     try {
                         var stack = game._sceneStack && game._sceneStack._stack;

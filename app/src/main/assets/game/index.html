@@ -87,13 +87,46 @@
             } catch(e) {}
         };
 
-        /* ── On-death hook — save progress only, no ads ────────────────────── */
+        /* ── Android → JS reward callback (called by MainActivity after rewarded ad) ── */
+        window.onRewardedAdComplete = function() {
+            try {
+                var stack = window._gmGame && window._gmGame._sceneStack && window._gmGame._sceneStack._stack;
+                if (!stack || !stack.length) return;
+                var vars = stack[0].getVariables();
+                var current = vars.get('CoinsCount').getAsNumber();
+                vars.get('CoinsCount').setNumber(current + 150);
+                window._pgSaveProgress && window._pgSaveProgress();
+            } catch(e) {}
+        };
+
+        /* ── On-death hook — save progress + show interstitial ad ───────────── */
         window._startAdTimers = function() {
             var _origOnDeath = window.gmOnDeath;
+            var _lastInterstitialTime = 0;
+            var INTERSTITIAL_COOLDOWN_MS = 60000; // max once per 60s
+
             window.gmOnDeath = function(runtimeScene) {
                 _origOnDeath && _origOnDeath(runtimeScene);
                 window._pgSaveProgress && window._pgSaveProgress();
+
+                // Show interstitial on death (with cooldown so it's not every single death)
+                var now = Date.now();
+                if (now - _lastInterstitialTime >= INTERSTITIAL_COOLDOWN_MS) {
+                    if (window.AndroidBridge && typeof window.AndroidBridge.showInterstitialAd === 'function') {
+                        _lastInterstitialTime = now;
+                        setTimeout(function() {
+                            window.AndroidBridge.showInterstitialAd();
+                        }, 600); // slight delay so game-over screen appears first
+                    }
+                }
             };
+        };
+
+        /* ── Rewarded ad trigger — called from GDevelop "watch ad" button ──── */
+        window.showRewardedAd = function() {
+            if (window.AndroidBridge && typeof window.AndroidBridge.showRewardedAd === 'function') {
+                window.AndroidBridge.showRewardedAd();
+            }
         };
 
     </script>

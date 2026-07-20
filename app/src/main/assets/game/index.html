@@ -385,12 +385,17 @@
                Both speed AND the number of cars on screen scale with
                score, matching the same milestones:
 
-               Score   0   → 100 px/s · 14 cars (base)
-               Score   5   → 100 px/s · 15 cars
-               Score  50   → 180 px/s · 24 cars
-               Score 100   → 340 px/s · 34 cars
-               Score 150   → 500 px/s · 44 cars  ← milestone
-               Score 300+  → 800 px/s · 74 cars  (no hard cap — keeps growing)
+               Score   0–24  → 100 px/s  (natural spawning, no car limit)
+               Score  25–49  → 100 px/s
+               Score  50–74  → 180 px/s
+               Score  75–99  → 260 px/s
+               Score 100–124 → 340 px/s
+               Score 125–149 → 420 px/s
+               Score 150–174 → 500 px/s  ← milestone
+               Score 175–199 → 580 px/s
+               Score 200–224 → 660 px/s
+               Score 225–249 → 740 px/s
+               Score 300+    → 800 px/s  ← hard cap
             ── */
             (function() {
                 var CAR_NAMES      = ['Car1','Car2','Car3','Car4','Car5'];
@@ -400,11 +405,6 @@
                 var STEP_SCORE     = 5;
                 var SPEED_PER_STEP = 16;
 
-
-                // Start at 14 cars, +1 every 5 score points (no hard cap)
-                function maxCarsForScore(score) {
-                    return 14 + Math.floor(score / 5);
-                }
 
                 setInterval(function() {
                     try {
@@ -418,22 +418,14 @@
                         var score    = scene.getScene().getVariables().getFromIndex(2).getAsNumber();
                         var steps    = Math.max(0, Math.floor((score - RAMP_START) / STEP_SCORE));
                         var newSpeed = Math.min(BASE_SPEED + steps * SPEED_PER_STEP, MAX_SPEED);
-                        var maxCars  = maxCarsForScore(score);
 
-                        // Apply speed + collect cars for overflow trim
-                        var allCars = [];
+                        // Apply speed to every car — no deletion, natural spawning
                         for (var c = 0; c < CAR_NAMES.length; c++) {
                             var cars = scene.getObjects(CAR_NAMES[c]);
                             if (!cars) continue;
                             for (var j = 0; j < cars.length; j++) {
                                 try { cars[j].getBehavior('LinearMovementByAngle')._setSpeed(newSpeed); } catch(e2) {}
-                                allCars.push(cars[j]);
                             }
-                        }
-
-                        // Only trim when GDevelop floods beyond the cap
-                        while (allCars.length > maxCars) {
-                            try { allCars.shift().deleteFromScene(scene); } catch(e3) {}
                         }
 
                     } catch(e) {}

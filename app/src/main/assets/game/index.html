@@ -385,17 +385,15 @@
                Both speed AND the number of cars on screen scale with
                score, matching the same milestones:
 
-               Score   0–24 → 100 px/s  · max  2 cars
-               Score  25–49 → ramp      · max  3 cars
-               Score  50–74 → 180 px/s  · max  4 cars
-               Score  75–99 → 260 px/s  · max  5 cars
-               Score 100–124 → 340 px/s · max  6 cars
-               Score 125–149 → 420 px/s · max  7 cars
-               Score 150–174 → 500 px/s · max  8 cars  ← milestone
-               Score 175–199 → 580 px/s · max  9 cars
-               Score 200–224 → 660 px/s · max 10 cars
-               Score 225–249 → 740 px/s · max 11 cars
-               Score 300+    → 800 px/s · max 12 cars  ← hard cap
+               Score   0–24 → 100 px/s  · max  5 cars
+               Score  25–49 → ramp      · max  8 cars
+               Score  50–74 → 180 px/s  · max 11 cars
+               Score  75–99 → 260 px/s  · max 14 cars
+               Score 100–124 → 340 px/s · max 17 cars
+               Score 125–149 → 420 px/s · max 20 cars
+               Score 150–174 → 500 px/s · max 23 cars  ← milestone
+               Score 175–199 → 580 px/s · max 26 cars
+               Score 200+    → 660 px/s · max 29+ cars
             ── */
             (function() {
                 var CAR_NAMES      = ['Car1','Car2','Car3','Car4','Car5'];
@@ -405,18 +403,9 @@
                 var STEP_SCORE     = 5;
                 var SPEED_PER_STEP = 16;
 
+                // Start at 5 cars, add 3 more every 25 score points
                 function maxCarsForScore(score) {
-                    if (score <  25) return 2;
-                    if (score <  50) return 3;
-                    if (score <  75) return 4;
-                    if (score < 100) return 5;
-                    if (score < 125) return 6;
-                    if (score < 150) return 7;
-                    if (score < 175) return 8;
-                    if (score < 200) return 9;
-                    if (score < 225) return 10;
-                    if (score < 300) return 11;
-                    return 12;
+                    return 5 + Math.floor(score / 25) * 3;
                 }
 
                 setInterval(function() {

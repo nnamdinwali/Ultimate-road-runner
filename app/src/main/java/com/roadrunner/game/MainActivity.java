@@ -44,9 +44,10 @@ public class MainActivity extends AppCompatActivity {
     //       https://partner2.yandex.ru/  (App ID: 19994035)
     //       Format: R-M-XXXXXXXX-X
     // ─────────────────────────────────────────────────────────────────────────
-    private static final String BANNER_AD_UNIT_ID       = "demo-banner-yandex";
-    private static final String INTERSTITIAL_AD_UNIT_ID = "demo-interstitial-yandex";
-    private static final String REWARDED_AD_UNIT_ID     = "demo-rewarded-yandex";
+    private static final String BANNER_AD_UNIT_ID       = "R-M-19594035-2";
+    private static final String INTERSTITIAL_AD_UNIT_ID = "R-M-19594035-1";
+    private static final String REWARDED_AD_UNIT_ID     = "R-M-19594035-4";
+    private static final String APP_OPEN_AD_UNIT_ID     = "R-M-19594035-3";
 
     WebView webView;  // package-private so AndroidBridge can call evaluateJavascript
     private BannerAdView bannerAdView;

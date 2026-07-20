@@ -94,7 +94,7 @@
                 if (!stack || !stack.length) return;
                 var vars = stack[0].getVariables();
                 var current = vars.get('CoinsCount').getAsNumber();
-                vars.get('CoinsCount').setNumber(current + 150);
+                vars.get('CoinsCount').setNumber(current + 1);
                 window._pgSaveProgress && window._pgSaveProgress();
             } catch(e) {}
         };
@@ -119,7 +119,22 @@
                         }, 600); // slight delay so game-over screen appears first
                     }
                 }
+
+                // Show the Watch-Ad overlay button
+                window._showWatchAdBtn && window._showWatchAdBtn();
             };
+
+            // Poll every 150ms — hide Watch-Ad button when Game Over layer disappears (Retry tapped)
+            setInterval(function() {
+                try {
+                    var stack = window._gmGame && window._gmGame._sceneStack && window._gmGame._sceneStack._stack;
+                    if (!stack || !stack.length) return;
+                    var layer = stack[0].getLayer("Game Over");
+                    if (layer && !layer.isVisible()) {
+                        window._hideWatchAdBtn && window._hideWatchAdBtn();
+                    }
+                } catch(e) {}
+            }, 150);
         };
 
         /* ── Rewarded ad trigger — called from GDevelop "watch ad" button ──── */
@@ -383,6 +398,72 @@
 
         });
     })();
+    </script>
+
+    <!-- ── Watch-Ad overlay button ─────────────────────────────────────────── -->
+    <style>
+        #watchAdBtn {
+            display: none;
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 17%;          /* sits between SUMBIT SCORE and RETRY */
+            z-index: 9999;
+            width: 68%;
+            max-width: 280px;
+            background: linear-gradient(180deg, #FFD740 0%, #FFA000 100%);
+            border: none;
+            border-radius: 50px;
+            padding: 0;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #B35F00, 0 8px 16px rgba(0,0,0,0.45);
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #watchAdBtn:active {
+            transform: translateX(-50%) translateY(4px);
+            box-shadow: 0 2px 0 #B35F00, 0 4px 8px rgba(0,0,0,0.35);
+        }
+        #watchAdBtnInner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 13px 20px;
+            border-radius: 50px;
+            border-top: 2px solid rgba(255,255,255,0.55);
+        }
+        #watchAdBtnLabel {
+            font-family: Arial, sans-serif;
+            font-weight: 900;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.35);
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+    </style>
+
+    <button id="watchAdBtn" onclick="window.showRewardedAd()">
+        <div id="watchAdBtnInner">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.2)"/>
+                <polygon points="9.5,7 19,12 9.5,17" fill="#fff"/>
+            </svg>
+            <span id="watchAdBtnLabel">Watch Ad · +1 Coin</span>
+        </div>
+    </button>
+
+    <script>
+        window._showWatchAdBtn = function() {
+            var btn = document.getElementById('watchAdBtn');
+            if (btn) btn.style.display = 'block';
+        };
+        window._hideWatchAdBtn = function() {
+            var btn = document.getElementById('watchAdBtn');
+            if (btn) btn.style.display = 'none';
+        };
     </script>
 </body>
 </html>

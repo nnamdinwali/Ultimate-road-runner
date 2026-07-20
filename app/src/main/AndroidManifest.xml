@@ -28,6 +28,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Required for Yandex Ads full-screen formats (interstitial & rewarded) -->
+        <activity
+            android:name="com.yandex.mobile.ads.common.MobileAdsActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
     </application>
 
 </manifest>

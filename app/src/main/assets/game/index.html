@@ -346,6 +346,48 @@
         game.loadAllAssets(function() {
             game.startGameLoop();
             window._startAdTimers();
+            /* ── Difficulty progression ─────────────────────────────────────
+               Cars start slow (speed 200) and get faster as the chicken's
+               score increases, capping at speed 480.
+               Score 0  → 200 px/s  (nice and easy)
+               Score 10 → 230 px/s
+               Score 20 → 260 px/s
+               Score 40 → 320 px/s
+               Score 60 → 380 px/s
+               Score 80 → 440 px/s
+               Score 100+ → 480 px/s (max challenge)
+               Updated every 200 ms so newly spawned cars pick up the
+               correct speed within one tick.
+            ── */
+            (function() {
+                var CAR_NAMES  = ['Car1','Car2','Car3','Car4','Car5'];
+                var BASE_SPEED = 200;   // speed at score 0
+                var MAX_SPEED  = 480;   // hard cap
+                var STEP_SCORE = 5;     // score units per speed step
+                var STEP_SPEED = 15;    // speed added per step
+                setInterval(function() {
+                    try {
+                        var stack = game._sceneStack && game._sceneStack._stack;
+                        if (!stack || !stack.length) return;
+                        var scene = stack[0];
+                        var score = scene.getScene().getVariables().getFromIndex(2).getAsNumber();
+                        var newSpeed = Math.min(
+                            BASE_SPEED + Math.floor(score / STEP_SCORE) * STEP_SPEED,
+                            MAX_SPEED
+                        );
+                        for (var c = 0; c < CAR_NAMES.length; c++) {
+                            var cars = scene.getObjects(CAR_NAMES[c]);
+                            if (!cars) continue;
+                            for (var j = 0; j < cars.length; j++) {
+                                try {
+                                    cars[j].getBehavior('LinearMovementByAngle')._setSpeed(newSpeed);
+                                } catch(e2) {}
+                            }
+                        }
+                    } catch(e) {}
+                }, 200);
+            })();
+
 
 
             /* Load saved progress */

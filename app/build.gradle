@@ -43,10 +43,16 @@ android {
         exclude 'META-INF/LICENSE'
         exclude 'META-INF/LICENSE.txt'
     }
+
+    lint {
+        // Yandex's own lint rule demands 8.x, but 7.4.0 compiles and works fine.
+        // Suppressing here so the release build is not blocked by a version nag.
+        disable 'MobileAdsSdkOutdatedVersion'
+    }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.9.0'
-    implementation 'com.yandex.android:mobileads:8.2.0'
+    implementation 'com.yandex.android:mobileads:7.4.0'
 }

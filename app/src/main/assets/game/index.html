@@ -88,14 +88,13 @@
         };
 
         /* ── Android → JS reward callback (called by MainActivity after rewarded ad) ── */
-        // _runEarnedCoins is set by _startAdTimers each time the player dies.
-        // It holds how many coins were collected during that run (0 = nothing to double).
+        // _runEarnedCoins: coins collected this run, set by _startAdTimers at death.
         window._runEarnedCoins = 0;
         window.onRewardedAdComplete = function() {
             try {
-                var toAdd = window._runEarnedCoins; // doubling = add the same amount earned again
-                if (toAdd <= 0) {
-                    // Player earned no coins this run — button should never have appeared, do nothing
+                // Only reward if the player earned at least 1 coin this run.
+                // (Button should already be hidden for 0-coin runs, but guard here too.)
+                if (window._runEarnedCoins <= 0) {
                     window._hideWatchAdBtn && window._hideWatchAdBtn();
                     return;
                 }
@@ -103,14 +102,13 @@
                 if (!stack || !stack.length) return;
                 var scene = stack[0];
                 var vars = scene.getVariables();
-                var newTotal = vars.get('CoinsCount').getAsNumber() + toAdd;
+                var newTotal = vars.get('CoinsCount').getAsNumber() + 1; // always +1
                 vars.get('CoinsCount').setNumber(newTotal);
-                // Write to GDevelop JSON storage — this is the SAME system that
-                // readNumberFromJSONFile reads on retry, so the coins survive Retry.
+                // Save to GDevelop JSON storage — the same system replaceScene reloads from,
+                // so the +1 coin persists when the player hits Retry.
                 try { gdjs.evtTools.storage.writeNumberInJSONFile('Save', 'Coins', newTotal); } catch(e2) {}
-                window._pgSaveProgress && window._pgSaveProgress(); // bridge storage backup
+                window._pgSaveProgress && window._pgSaveProgress();
             } catch(e) {}
-            // One reward per run — hide immediately
             window._hideWatchAdBtn && window._hideWatchAdBtn();
         };
 
@@ -565,7 +563,7 @@
                 <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.2)"/>
                 <polygon points="9.5,7 19,12 9.5,17" fill="#fff"/>
             </svg>
-            <span id="watchAdBtnLabel">Watch Ad · Double Coins</span>
+            <span id="watchAdBtnLabel">Watch Ad · +1 Coin</span>
         </div>
     </button>
 

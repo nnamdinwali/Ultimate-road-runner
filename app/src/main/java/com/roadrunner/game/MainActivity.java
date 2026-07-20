@@ -27,6 +27,10 @@ import com.yandex.mobile.ads.interstitial.InterstitialAd;
 import com.yandex.mobile.ads.interstitial.InterstitialAdEventListener;
 import com.yandex.mobile.ads.interstitial.InterstitialAdLoadListener;
 import com.yandex.mobile.ads.interstitial.InterstitialAdLoader;
+import com.yandex.mobile.ads.appopenad.AppOpenAd;
+import com.yandex.mobile.ads.appopenad.AppOpenAdEventListener;
+import com.yandex.mobile.ads.appopenad.AppOpenAdLoadListener;
+import com.yandex.mobile.ads.appopenad.AppOpenAdLoader;
 import com.yandex.mobile.ads.rewarded.Reward;
 import com.yandex.mobile.ads.rewarded.RewardedAd;
 import com.yandex.mobile.ads.rewarded.RewardedAdEventListener;
@@ -62,6 +66,14 @@ public class MainActivity extends AppCompatActivity {
     // Reward callback to run after a rewarded ad completes
     private Runnable pendingRewardCallback;
 
+    private AppOpenAdLoader appOpenAdLoader;
+    private AppOpenAd       appOpenAd;
+    private boolean         appOpenAdShowing  = false;
+    // Skip showing on the very first onStart (cold launch — game needs a moment to load)
+    private boolean         isFirstStart      = true;
+    // Track background transitions: true after onStop, cleared in onStart
+    private boolean         appWasInBackground = false;
+
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
     @Override
@@ -73,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Yandex MobileAds SDK initialized");
             loadInterstitialAd();
             loadRewardedAd();
+            loadAppOpenAd();
         });
 
         initWebView();
@@ -81,11 +94,31 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        if (isFirstStart) {
+            // Cold launch — let the game finish loading before showing an app-open ad
+            isFirstStart = false;
+        } else if (appWasInBackground) {
+            // App returned from background — show the app-open ad
+            appWasInBackground = false;
+            showAppOpenAd();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        appWasInBackground = true;
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (bannerAdView   != null) bannerAdView.destroy();
         if (interstitialAd != null) interstitialAd.setAdEventListener(null);
         if (rewardedAd     != null) rewardedAd.setAdEventListener(null);
+        if (appOpenAd      != null) appOpenAd.setAdEventListener(null);
         if (webView        != null) webView.destroy();
     }
 
@@ -246,6 +279,47 @@ public class MainActivity extends AppCompatActivity {
                 loadRewardedAd();
             }
         });
+    }
+
+    // ── App Open Ad ──────────────────────────────────────────────────────────
+
+    void loadAppOpenAd() {
+        appOpenAdLoader = new AppOpenAdLoader(this);
+        appOpenAdLoader.setAdLoadListener(new AppOpenAdLoadListener() {
+            @Override
+            public void onAdLoaded(@NonNull AppOpenAd ad) {
+                appOpenAd = ad;
+                Log.d(TAG, "App Open ad loaded");
+            }
+            @Override
+            public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                appOpenAd = null;
+                Log.w(TAG, "App Open ad failed: " + error.getDescription());
+            }
+        });
+        appOpenAdLoader.loadAd(
+                new AdRequestConfiguration.Builder(APP_OPEN_AD_UNIT_ID).build());
+    }
+
+    void showAppOpenAd() {
+        if (appOpenAd == null || appOpenAdShowing) return;
+        appOpenAdShowing = true;
+        appOpenAd.setAdEventListener(new AppOpenAdEventListener() {
+            @Override public void onAdShown()       { Log.d(TAG, "App Open shown"); }
+            @Override public void onAdFailedToShow(@NonNull AdError e) {
+                appOpenAdShowing = false;
+                appOpenAd = null;
+                loadAppOpenAd();
+            }
+            @Override public void onAdDismissed() {
+                appOpenAdShowing = false;
+                appOpenAd = null;
+                loadAppOpenAd();   // preload the next one immediately
+            }
+            @Override public void onAdClicked()                       {}
+            @Override public void onAdImpression(ImpressionData d)    {}
+        });
+        appOpenAd.show(MainActivity.this);
     }
 
     // ── Privacy Policy ───────────────────────────────────────────────────────

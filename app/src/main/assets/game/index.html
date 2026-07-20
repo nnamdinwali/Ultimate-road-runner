@@ -88,16 +88,29 @@
         };
 
         /* ── Android → JS reward callback (called by MainActivity after rewarded ad) ── */
+        // _runEarnedCoins is set by _startAdTimers each time the player dies.
+        // It holds how many coins were collected during that run (0 = nothing to double).
+        window._runEarnedCoins = 0;
         window.onRewardedAdComplete = function() {
             try {
+                var toAdd = window._runEarnedCoins; // doubling = add the same amount earned again
+                if (toAdd <= 0) {
+                    // Player earned no coins this run — button should never have appeared, do nothing
+                    window._hideWatchAdBtn && window._hideWatchAdBtn();
+                    return;
+                }
                 var stack = window._gmGame && window._gmGame._sceneStack && window._gmGame._sceneStack._stack;
                 if (!stack || !stack.length) return;
-                var vars = stack[0].getVariables();
-                var current = vars.get('CoinsCount').getAsNumber();
-                vars.get('CoinsCount').setNumber(current + 1);
-                window._pgSaveProgress && window._pgSaveProgress();
+                var scene = stack[0];
+                var vars = scene.getVariables();
+                var newTotal = vars.get('CoinsCount').getAsNumber() + toAdd;
+                vars.get('CoinsCount').setNumber(newTotal);
+                // Write to GDevelop JSON storage — this is the SAME system that
+                // readNumberFromJSONFile reads on retry, so the coins survive Retry.
+                try { gdjs.evtTools.storage.writeNumberInJSONFile('Save', 'Coins', newTotal); } catch(e2) {}
+                window._pgSaveProgress && window._pgSaveProgress(); // bridge storage backup
             } catch(e) {}
-            // One reward per run — hide the button immediately after watching
+            // One reward per run — hide immediately
             window._hideWatchAdBtn && window._hideWatchAdBtn();
         };
 
@@ -107,9 +120,19 @@
             var _lastInterstitialTime = 0;
             var INTERSTITIAL_COOLDOWN_MS = 60000; // max once per 60s
 
+            // Tracks how many coins were collected in the current run.
+            var _runStartCoins = 0;
+            var _wasInGameplay  = false; // were we in active gameplay last tick?
+
             window.gmOnDeath = function(runtimeScene) {
                 _origOnDeath && _origOnDeath(runtimeScene);
                 window._pgSaveProgress && window._pgSaveProgress();
+
+                // Compute coins earned this run = total now minus total at run start
+                try {
+                    var coinsNow = runtimeScene.getScene().getVariables().getFromIndex(0).getAsNumber();
+                    window._runEarnedCoins = Math.max(0, coinsNow - _runStartCoins);
+                } catch(e) { window._runEarnedCoins = 0; }
 
                 // Show interstitial on death (with cooldown so it's not every single death)
                 var now = Date.now();
@@ -122,8 +145,11 @@
                     }
                 }
 
-                // Show the Watch-Ad overlay button
-                window._showWatchAdBtn && window._showWatchAdBtn();
+                // Only show Watch-Ad button if the player earned at least 1 coin this run.
+                // Zero coins earned = nothing to double = button stays hidden.
+                if (window._runEarnedCoins > 0) {
+                    window._showWatchAdBtn && window._showWatchAdBtn();
+                }
             };
 
             // Poll every 200ms for two jobs:
@@ -166,6 +192,17 @@
                             window.AndroidBridge.showBanner();
                         }
                     }
+
+                    // 3. Detect moment active gameplay begins (no UI visible after menu seen once).
+                    //    Snapshot coin total as the run baseline so we know what was earned this run.
+                    var inGameplay = !anyUI && _seenMenu;
+                    if (inGameplay && !_wasInGameplay) {
+                        try {
+                            _runStartCoins = scene.getScene().getVariables().getFromIndex(0).getAsNumber();
+                            window._runEarnedCoins = 0; // reset for fresh run
+                        } catch(e4) {}
+                    }
+                    _wasInGameplay = inGameplay;
                 } catch(e) {}
             }, 200);
         };
@@ -528,7 +565,7 @@
                 <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.2)"/>
                 <polygon points="9.5,7 19,12 9.5,17" fill="#fff"/>
             </svg>
-            <span id="watchAdBtnLabel">Watch Ad · +1 Coin</span>
+            <span id="watchAdBtnLabel">Watch Ad · Double Coins</span>
         </div>
     </button>
 

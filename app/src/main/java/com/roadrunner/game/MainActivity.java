@@ -57,6 +57,13 @@ public class MainActivity extends AppCompatActivity {
     WebView webView;  // package-private so AndroidBridge can call evaluateJavascript
     private BannerAdView bannerAdView;
 
+    // ── Banner state ─────────────────────────────────────────────────────────
+    // We do NOT load the banner on startup. It is only loaded the first time
+    // JS calls showBanner() (i.e. when gameplay begins). This guarantees the
+    // banner can never appear on the Menu / loading screen.
+    private boolean bannerLoadStarted    = false; // loadAd() has been called at least once
+    private boolean bannerShouldBeVisible = false; // JS wants the banner visible right now
+
     private InterstitialAdLoader interstitialLoader;
     private InterstitialAd       interstitialAd;
 
@@ -86,6 +93,8 @@ public class MainActivity extends AppCompatActivity {
             loadInterstitialAd();
             loadRewardedAd();
             loadAppOpenAd();
+            // NOTE: banner is intentionally NOT pre-loaded here.
+            // It will be loaded on the first showBanner() call from gameplay.
         });
 
         initWebView();
@@ -163,6 +172,16 @@ public class MainActivity extends AppCompatActivity {
 
     // ── Banner Ad ────────────────────────────────────────────────────────────
 
+    /**
+     * Set up the BannerAdView (size + listener) but do NOT call loadAd().
+     *
+     * The banner is loaded lazily: the first time showBanner() is called from
+     * JS (which only happens when the gameplay scene is active), we call
+     * loadAd() and, once it resolves, make the view visible.
+     *
+     * This ensures the banner is NEVER shown on the loading screen or main menu,
+     * even if there is a race condition in the JS layer poller.
+     */
     private void initBannerAd() {
         bannerAdView = findViewById(R.id.bannerAdView);
         bannerAdView.setAdUnitId(BANNER_AD_UNIT_ID);
@@ -173,13 +192,27 @@ public class MainActivity extends AppCompatActivity {
         bannerAdView.setBannerAdEventListener(new BannerAdEventListener() {
             @Override
             public void onAdLoaded() {
-                // Stay hidden — JS layer-poller calls showBanner() only during gameplay
-                Log.d(TAG, "Banner loaded and ready");
+                Log.d(TAG, "Banner loaded");
+                // Only show the banner if showBanner() is still pending
+                // (i.e. JS hasn't called hideBanner() in the meantime).
+                if (bannerShouldBeVisible) {
+                    runOnUiThread(() -> {
+                        if (bannerAdView != null) bannerAdView.setVisibility(View.VISIBLE);
+                    });
+                } else {
+                    // hideBanner() was called while the ad was loading — stay hidden.
+                    runOnUiThread(() -> {
+                        if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
+                    });
+                }
             }
             @Override
             public void onAdFailedToLoad(@NonNull AdRequestError error) {
                 Log.w(TAG, "Banner failed: " + error.getDescription());
-                bannerAdView.setVisibility(View.GONE);
+                bannerLoadStarted = false; // allow retry on next showBanner() call
+                runOnUiThread(() -> {
+                    if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
+                });
             }
             @Override public void onAdClicked()                                  {}
             @Override public void onLeftApplication()                            {}
@@ -187,17 +220,47 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onImpression(ImpressionData impressionData)    {}
         });
 
-        bannerAdView.loadAd(new AdRequest.Builder().build());
+        // DO NOT call bannerAdView.loadAd() here.
+        // The banner will be loaded on the first showBanner() call.
     }
 
     // ── Banner show / hide (called from JS via AndroidBridge) ────────────────
 
+    /**
+     * Called by JS when the gameplay scene becomes active.
+     *
+     * First call: starts loading the banner ad from Yandex. The banner
+     * becomes visible once onAdLoaded() fires (typically ~1 second).
+     *
+     * Subsequent calls (e.g. player resumes after Game Over): banner is
+     * already loaded so it becomes visible immediately.
+     */
     void showBanner() {
-        runOnUiThread(() -> { if (bannerAdView != null) bannerAdView.setVisibility(View.VISIBLE); });
+        runOnUiThread(() -> {
+            if (bannerAdView == null) return;
+            bannerShouldBeVisible = true;
+            if (!bannerLoadStarted) {
+                // First time — kick off the ad request now
+                bannerLoadStarted = true;
+                bannerAdView.loadAd(new AdRequest.Builder().build());
+                // onAdLoaded() will call setVisibility(VISIBLE) once the ad arrives
+                Log.d(TAG, "Banner: first load requested (gameplay started)");
+            } else {
+                // Ad already loaded or loading — show it right away
+                bannerAdView.setVisibility(View.VISIBLE);
+            }
+        });
     }
 
+    /**
+     * Called by JS when a non-gameplay screen is active (Menu, Game Over,
+     * Shop, Settings).
+     */
     void hideBanner() {
-        runOnUiThread(() -> { if (bannerAdView != null) bannerAdView.setVisibility(View.GONE); });
+        runOnUiThread(() -> {
+            bannerShouldBeVisible = false;
+            if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
+        });
     }
 
     // ── Interstitial Ad ──────────────────────────────────────────────────────

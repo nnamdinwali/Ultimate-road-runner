@@ -130,6 +130,7 @@
             //   1. Hide Watch-Ad button when Game Over layer disappears (Retry tapped)
             //   2. Show banner ONLY during active gameplay; hide on Menu/Game Over/Shop/Settings
             var _bannerShown = false;
+            var _seenMenu = false; // banner only allowed after Menu was seen once (game fully loaded)
             var UI_LAYERS = ["Menu", "Game Over", "Shop", "Settings"];
             setInterval(function() {
                 try {
@@ -147,6 +148,7 @@
 
                     // 2. Banner: hide on any UI screen, show during active gameplay only
                     var anyUI = false;
+                    try { var _ml = scene.getLayer("Menu"); if (_ml && _ml.isVisible()) _seenMenu = true; } catch(_me) {}
                     for (var i = 0; i < UI_LAYERS.length; i++) {
                         try {
                             var l = scene.getLayer(UI_LAYERS[i]);
@@ -158,7 +160,7 @@
                         if (window.AndroidBridge && typeof window.AndroidBridge.hideBanner === 'function') {
                             window.AndroidBridge.hideBanner();
                         }
-                    } else if (!anyUI && !_bannerShown) {
+                    } else if (!anyUI && !_bannerShown && _seenMenu) {
                         _bannerShown = true;
                         if (window.AndroidBridge && typeof window.AndroidBridge.showBanner === 'function') {
                             window.AndroidBridge.showBanner();
@@ -438,7 +440,7 @@
             position: fixed;
             left: 50%;
             transform: translateX(-50%);
-            bottom: 17%;          /* sits between SUMBIT SCORE and RETRY */
+            bottom: 24%;          /* above SUBMIT SCORE button */
             z-index: 9999;
             width: 68%;
             max-width: 280px;

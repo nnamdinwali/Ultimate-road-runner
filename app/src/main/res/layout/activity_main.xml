@@ -2,8 +2,8 @@
 <!--
     Layout structure (bottom-up stacking in FrameLayout):
       1. WebView       — full screen, the GDevelop game
-      2. bannerAdView  — sticky banner at bottom (GONE until ad loads)
-      3. privacyPolicyBtn — floats above the banner
+      2. bannerAdView  — sticky banner at bottom (GONE until gameplay starts)
+      3. privacyPolicyBtn — floats at bottom corner
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/rootLayout"
@@ -23,13 +23,13 @@
         android:layout_gravity="bottom|center_horizontal"
         android:visibility="gone" />
 
-    <!-- Privacy Policy button — native overlay above the banner -->
+    <!-- Privacy Policy button — sits at the very bottom corner of the screen -->
     <TextView
         android:id="@+id/privacyPolicyBtn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
-        android:layout_marginBottom="70dp"
+        android:layout_marginBottom="8dp"
         android:layout_marginStart="12dp"
         android:background="#8C000000"
         android:paddingHorizontal="10dp"

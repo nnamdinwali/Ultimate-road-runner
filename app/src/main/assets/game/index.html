@@ -385,13 +385,12 @@
                Both speed AND the number of cars on screen scale with
                score, matching the same milestones:
 
-               Score   0–49  → 100 px/s · max  8 cars
-               Score  50–99  → 180 px/s · max  9 cars
-               Score 100–149 → 340 px/s · max 10 cars
-               Score 150–199 → 500 px/s · max 11 cars  ← milestone
-               Score 200–249 → 660 px/s · max 12 cars
-               Score 250–299 → 740 px/s · max 13 cars
-               Score 300+    → 800 px/s · max 14 cars  ← hard cap
+               Score   0   → 100 px/s · 14 cars (base)
+               Score   5   → 100 px/s · 15 cars
+               Score  50   → 180 px/s · 24 cars
+               Score 100   → 340 px/s · 34 cars
+               Score 150   → 500 px/s · 44 cars  ← milestone
+               Score 300+  → 800 px/s · 74 cars  (no hard cap — keeps growing)
             ── */
             (function() {
                 var CAR_NAMES      = ['Car1','Car2','Car3','Car4','Car5'];
@@ -402,9 +401,9 @@
                 var SPEED_PER_STEP = 16;
 
 
-                // Gentle cap: start at 8, +1 every 50 score points, hard cap 14
+                // Start at 14 cars, +1 every 5 score points (no hard cap)
                 function maxCarsForScore(score) {
-                    return Math.min(8 + Math.floor(score / 50), 14);
+                    return 14 + Math.floor(score / 5);
                 }
 
                 setInterval(function() {

@@ -19,6 +19,7 @@ import com.yandex.mobile.ads.banner.BannerAdSize;
 import com.yandex.mobile.ads.banner.BannerAdView;
 import com.yandex.mobile.ads.common.AdRequest;
 import com.yandex.mobile.ads.common.AdRequestConfiguration;
+import com.yandex.mobile.ads.common.AdError;
 import com.yandex.mobile.ads.common.AdRequestError;
 import com.yandex.mobile.ads.common.ImpressionData;
 import com.yandex.mobile.ads.common.MobileAds;
@@ -182,7 +183,7 @@ public class MainActivity extends AppCompatActivity {
             if (interstitialAd != null) {
                 interstitialAd.setAdEventListener(new InterstitialAdEventListener() {
                     @Override public void onAdShown()               { Log.d(TAG, "Interstitial shown"); }
-                    @Override public void onAdFailedToShow(@NonNull AdRequestError e) { loadInterstitialAd(); }
+                    @Override public void onAdFailedToShow(@NonNull AdError e) { loadInterstitialAd(); }
                     @Override public void onAdDismissed()           { interstitialAd = null; loadInterstitialAd(); }
                     @Override public void onAdClicked()             {}
                     @Override public void onAdImpression(ImpressionData d) {}
@@ -235,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     @Override public void onAdShown()    { Log.d(TAG, "Rewarded shown"); }
                     @Override public void onAdDismissed() { rewardedAd = null; loadRewardedAd(); }
-                    @Override public void onAdFailedToShow(@NonNull AdRequestError e) { loadRewardedAd(); }
+                    @Override public void onAdFailedToShow(@NonNull AdError e) { loadRewardedAd(); }
                     @Override public void onAdClicked()  {}
                     @Override public void onAdImpression(ImpressionData d) {}
                 });

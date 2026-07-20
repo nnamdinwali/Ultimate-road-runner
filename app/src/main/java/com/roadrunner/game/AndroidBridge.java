@@ -55,13 +55,13 @@ public class AndroidBridge {
     @JavascriptInterface
     public void showRewardedAd() {
         activity.showRewardedAd(() ->
-            activity.runOnUiThread(() ->
-                activity.webView != null
-                    ? activity.webView.evaluateJavascript(
-                        "if(typeof window.onRewardedAdComplete === 'function') { window.onRewardedAdComplete(); }",
-                        null)
-                    : null
-            )
+            activity.runOnUiThread(() -> {
+                if (activity.webView != null) {
+                    activity.webView.evaluateJavascript(
+                        "if(typeof window.onRewardedAdComplete==='function'){window.onRewardedAdComplete();}",
+                        null);
+                }
+            })
         );
     }
 }

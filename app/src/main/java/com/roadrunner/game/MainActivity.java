@@ -18,11 +18,10 @@ import com.yandex.mobile.ads.banner.BannerAdEventListener;
 import com.yandex.mobile.ads.banner.BannerAdSize;
 import com.yandex.mobile.ads.banner.BannerAdView;
 import com.yandex.mobile.ads.common.AdRequest;
-import com.yandex.mobile.ads.common.AdRequestConfiguration;
 import com.yandex.mobile.ads.common.AdError;
 import com.yandex.mobile.ads.common.AdRequestError;
 import com.yandex.mobile.ads.common.ImpressionData;
-import com.yandex.mobile.ads.common.MobileAds;
+import com.yandex.mobile.ads.common.YandexAds;
 import com.yandex.mobile.ads.interstitial.InterstitialAd;
 import com.yandex.mobile.ads.interstitial.InterstitialAdEventListener;
 import com.yandex.mobile.ads.interstitial.InterstitialAdLoadListener;
@@ -88,7 +87,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        MobileAds.initialize(this, () -> {
+        YandexAds.initialize(this, () -> {
             Log.d(TAG, "Yandex MobileAds SDK initialized");
             loadInterstitialAd();
             loadRewardedAd();
@@ -184,10 +183,9 @@ public class MainActivity extends AppCompatActivity {
      */
     private void initBannerAd() {
         bannerAdView = findViewById(R.id.bannerAdView);
-        bannerAdView.setAdUnitId(BANNER_AD_UNIT_ID);
 
         int widthPx = getResources().getDisplayMetrics().widthPixels;
-        bannerAdView.setAdSize(BannerAdSize.stickySize(this, widthPx));
+        bannerAdView.setAdSize(BannerAdSize.sticky(this, widthPx));
 
         bannerAdView.setBannerAdEventListener(new BannerAdEventListener() {
             @Override
@@ -214,10 +212,8 @@ public class MainActivity extends AppCompatActivity {
                     if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
                 });
             }
-            @Override public void onAdClicked()                                  {}
-            @Override public void onLeftApplication()                            {}
-            @Override public void onReturnedToApplication()                      {}
-            @Override public void onImpression(ImpressionData impressionData)    {}
+            @Override public void onAdClicked()                               {}
+            @Override public void onImpression(ImpressionData impressionData) {}
         });
 
         // DO NOT call bannerAdView.loadAd() here.
@@ -242,7 +238,7 @@ public class MainActivity extends AppCompatActivity {
             if (!bannerLoadStarted) {
                 // First time — kick off the ad request now
                 bannerLoadStarted = true;
-                bannerAdView.loadAd(new AdRequest.Builder().build());
+                bannerAdView.loadAd(new AdRequest.Builder(BANNER_AD_UNIT_ID).build());
                 // onAdLoaded() will call setVisibility(VISIBLE) once the ad arrives
                 Log.d(TAG, "Banner: first load requested (gameplay started)");
             } else {
@@ -267,20 +263,20 @@ public class MainActivity extends AppCompatActivity {
 
     void loadInterstitialAd() {
         interstitialLoader = new InterstitialAdLoader(this);
-        interstitialLoader.setAdLoadListener(new InterstitialAdLoadListener() {
-            @Override
-            public void onAdLoaded(@NonNull InterstitialAd ad) {
-                interstitialAd = ad;
-                Log.d(TAG, "Interstitial loaded");
-            }
-            @Override
-            public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                interstitialAd = null;
-                Log.w(TAG, "Interstitial failed: " + error.getDescription());
-            }
-        });
         interstitialLoader.loadAd(
-                new AdRequestConfiguration.Builder(INTERSTITIAL_AD_UNIT_ID).build());
+                new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
+                new InterstitialAdLoadListener() {
+                    @Override
+                    public void onAdLoaded(@NonNull InterstitialAd ad) {
+                        interstitialAd = ad;
+                        Log.d(TAG, "Interstitial loaded");
+                    }
+                    @Override
+                    public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                        interstitialAd = null;
+                        Log.w(TAG, "Interstitial failed: " + error.getDescription());
+                    }
+                });
     }
 
     /** Called from AndroidBridge (JS: window.AndroidBridge.showInterstitialAd()) */
@@ -306,20 +302,20 @@ public class MainActivity extends AppCompatActivity {
 
     void loadRewardedAd() {
         rewardedLoader = new RewardedAdLoader(this);
-        rewardedLoader.setAdLoadListener(new RewardedAdLoadListener() {
-            @Override
-            public void onAdLoaded(@NonNull RewardedAd ad) {
-                rewardedAd = ad;
-                Log.d(TAG, "Rewarded ad loaded");
-            }
-            @Override
-            public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                rewardedAd = null;
-                Log.w(TAG, "Rewarded failed: " + error.getDescription());
-            }
-        });
         rewardedLoader.loadAd(
-                new AdRequestConfiguration.Builder(REWARDED_AD_UNIT_ID).build());
+                new AdRequest.Builder(REWARDED_AD_UNIT_ID).build(),
+                new RewardedAdLoadListener() {
+                    @Override
+                    public void onAdLoaded(@NonNull RewardedAd ad) {
+                        rewardedAd = ad;
+                        Log.d(TAG, "Rewarded ad loaded");
+                    }
+                    @Override
+                    public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                        rewardedAd = null;
+                        Log.w(TAG, "Rewarded failed: " + error.getDescription());
+                    }
+                });
     }
 
     /**
@@ -358,20 +354,20 @@ public class MainActivity extends AppCompatActivity {
 
     void loadAppOpenAd() {
         appOpenAdLoader = new AppOpenAdLoader(this);
-        appOpenAdLoader.setAdLoadListener(new AppOpenAdLoadListener() {
-            @Override
-            public void onAdLoaded(@NonNull AppOpenAd ad) {
-                appOpenAd = ad;
-                Log.d(TAG, "App Open ad loaded");
-            }
-            @Override
-            public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                appOpenAd = null;
-                Log.w(TAG, "App Open ad failed: " + error.getDescription());
-            }
-        });
         appOpenAdLoader.loadAd(
-                new AdRequestConfiguration.Builder(APP_OPEN_AD_UNIT_ID).build());
+                new AdRequest.Builder(APP_OPEN_AD_UNIT_ID).build(),
+                new AppOpenAdLoadListener() {
+                    @Override
+                    public void onAdLoaded(@NonNull AppOpenAd ad) {
+                        appOpenAd = ad;
+                        Log.d(TAG, "App Open ad loaded");
+                    }
+                    @Override
+                    public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                        appOpenAd = null;
+                        Log.w(TAG, "App Open ad failed: " + error.getDescription());
+                    }
+                });
     }
 
     void showAppOpenAd() {

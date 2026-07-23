@@ -2466,7 +2466,7 @@ gdjs.MainCode.eventsList29 = function(runtimeScene) {
 
 let isConditionTrue_0 = false;
 isConditionTrue_0 = false;
-isConditionTrue_0 = gdjs.evtsExt__RepeatEveryXSeconds__Repeat.func(runtimeScene, "CarSpawn", 1, null);
+isConditionTrue_0 = gdjs.evtsExt__RepeatEveryXSeconds__Repeat.func(runtimeScene, "CarSpawn", spawnInterval, null);
 if (isConditionTrue_0) {
 
 { //Subevents
@@ -4242,3 +4242,4 @@ return;
 }
 
 gdjs['MainCode'] = gdjs.MainCode;
+

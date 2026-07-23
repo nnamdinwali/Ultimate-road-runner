@@ -2434,6 +2434,16 @@ isConditionTrue_0 = false;
 }
 if (isConditionTrue_0) {
 {gdjs.evtTools.object.createObjectFromGroupOnScene(runtimeScene, gdjs.MainCode.mapOfGDgdjs_9546MainCode_9546GDCar1Objects3ObjectsGDgdjs_9546MainCode_9546GDCar2Objects3ObjectsGDgdjs_9546MainCode_9546GDCar3Objects3ObjectsGDgdjs_9546MainCode_9546GDCar4Objects3ObjectsGDgdjs_9546MainCode_9546GDCar5Objects3Objects, "Car" + gdjs.evtTools.common.toString(gdjs.randomInRange(1, 5)), (( gdjs.MainCode.GDCarSpawnObjects3.length === 0 ) ? 0 :gdjs.MainCode.GDCarSpawnObjects3[0].getCenterXInScene()), (( gdjs.MainCode.GDCarSpawnObjects3.length === 0 ) ? 0 :gdjs.MainCode.GDCarSpawnObjects3[0].getCenterYInScene()), "");
+var currentScore = runtimeScene.getScene().getVariables().getFromIndex(2).getAsNumber();
+var newSpeed = Math.min(600, 150 + (currentScore * 5));
+var carGroups = [gdjs.MainCode.GDCar1Objects3, gdjs.MainCode.GDCar2Objects3, gdjs.MainCode.GDCar3Objects3, gdjs.MainCode.GDCar4Objects3, gdjs.MainCode.GDCar5Objects3];
+for (var g = 0; g < carGroups.length; g++) {
+    for (var i = 0; i < carGroups[g].length; i++) {
+        if (carGroups[g][i].getBehavior("LinearMovementByAngle")) {
+            carGroups[g][i].getBehavior("LinearMovementByAngle")._setSpeed(newSpeed);
+        }
+    }
+}
 }
 {for(var i = 0, len = gdjs.MainCode.GDCar1Objects3.length ;i < len;++i) {
     gdjs.MainCode.GDCar1Objects3[i].setAngle(((gdjs.MainCode.GDCarSpawnObjects3.length === 0 ) ? gdjs.VariablesContainer.badVariablesContainer : gdjs.MainCode.GDCarSpawnObjects3[0].getVariables()).getFromIndex(0).getAsNumber());
@@ -2466,6 +2476,8 @@ gdjs.MainCode.eventsList29 = function(runtimeScene) {
 
 let isConditionTrue_0 = false;
 isConditionTrue_0 = false;
+var currentScore = runtimeScene.getScene().getVariables().getFromIndex(2).getAsNumber();
+var spawnInterval = Math.max(0.4, 3.0 - (currentScore / 20));
 isConditionTrue_0 = gdjs.evtsExt__RepeatEveryXSeconds__Repeat.func(runtimeScene, "CarSpawn", spawnInterval, null);
 if (isConditionTrue_0) {
 

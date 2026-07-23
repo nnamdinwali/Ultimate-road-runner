@@ -1,6 +1,10 @@
 package com.roadrunner.game;
 
+import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -43,25 +47,16 @@ public class MainActivity extends AppCompatActivity {
     private static final String PRIVACY_POLICY_URL =
             "https://nnamdinwali.github.io/ultimate-road-runner-privacy/";
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TODO: Replace these with your real Yandex Ad Unit IDs from
-    //       https://partner2.yandex.ru/  (App ID: 19994035)
-    //       Format: R-M-XXXXXXXX-X
-    // ─────────────────────────────────────────────────────────────────────────
     private static final String BANNER_AD_UNIT_ID       = "R-M-19594035-2";
     private static final String INTERSTITIAL_AD_UNIT_ID = "R-M-19594035-1";
     private static final String REWARDED_AD_UNIT_ID     = "R-M-19594035-4";
     private static final String APP_OPEN_AD_UNIT_ID     = "R-M-19594035-3";
 
-    WebView webView;  // package-private so AndroidBridge can call evaluateJavascript
+    WebView webView;
     private BannerAdView bannerAdView;
 
-    // ── Banner state ─────────────────────────────────────────────────────────
-    // We do NOT load the banner on startup. It is only loaded the first time
-    // JS calls showBanner() (i.e. when gameplay begins). This guarantees the
-    // banner can never appear on the Menu / loading screen.
-    private boolean bannerLoadStarted    = false; // loadAd() has been called at least once
-    private boolean bannerShouldBeVisible = false; // JS wants the banner visible right now
+    private boolean bannerLoadStarted     = false;
+    private boolean bannerShouldBeVisible = false;
 
     private InterstitialAdLoader interstitialLoader;
     private InterstitialAd       interstitialAd;
@@ -69,15 +64,12 @@ public class MainActivity extends AppCompatActivity {
     private RewardedAdLoader rewardedLoader;
     private RewardedAd       rewardedAd;
 
-    // Reward callback to run after a rewarded ad completes
     private Runnable pendingRewardCallback;
 
     private AppOpenAdLoader appOpenAdLoader;
     private AppOpenAd       appOpenAd;
-    private boolean         appOpenAdShowing  = false;
-    // Skip showing on the very first onStart (cold launch — game needs a moment to load)
-    private boolean         isFirstStart      = true;
-    // Track background transitions: true after onStop, cleared in onStart
+    private boolean         appOpenAdShowing   = false;
+    private boolean         isFirstStart       = true;
     private boolean         appWasInBackground = false;
 
     // ── Lifecycle ────────────────────────────────────────────────────────────
@@ -87,13 +79,21 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        if (!isNetworkAvailable()) {
+            showNoNetworkDialog();
+            return;
+        }
+
+        startApp();
+    }
+
+    /** Called once we confirm there is a network connection. */
+    private void startApp() {
         YandexAds.initialize(this, () -> {
             Log.d(TAG, "Yandex MobileAds SDK initialized");
             loadInterstitialAd();
             loadRewardedAd();
             loadAppOpenAd();
-            // NOTE: banner is intentionally NOT pre-loaded here.
-            // It will be loaded on the first showBanner() call from gameplay.
         });
 
         initWebView();
@@ -105,10 +105,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         if (isFirstStart) {
-            // Cold launch — let the game finish loading before showing an app-open ad
             isFirstStart = false;
         } else if (appWasInBackground) {
-            // App returned from background — show the app-open ad
             appWasInBackground = false;
             showAppOpenAd();
         }
@@ -137,6 +135,35 @@ public class MainActivity extends AppCompatActivity {
         } else {
             super.onBackPressed();
         }
+    }
+
+    // ── Network check ─────────────────────────────────────────────────────────
+
+    private boolean isNetworkAvailable() {
+        ConnectivityManager cm =
+                (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        NetworkCapabilities caps = cm.getNetworkCapabilities(cm.getActiveNetwork());
+        return caps != null && (
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)     ||
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET));
+    }
+
+    private void showNoNetworkDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("No Internet Connection")
+                .setMessage("Road Runner requires an internet connection to play. Please connect to the internet and try again.")
+                .setCancelable(false)
+                .setPositiveButton("Retry", (dialog, which) -> {
+                    if (isNetworkAvailable()) {
+                        startApp();
+                    } else {
+                        showNoNetworkDialog();
+                    }
+                })
+                .setNegativeButton("Exit", (dialog, which) -> finishAffinity())
+                .show();
     }
 
     // ── WebView setup ────────────────────────────────────────────────────────
@@ -171,16 +198,6 @@ public class MainActivity extends AppCompatActivity {
 
     // ── Banner Ad ────────────────────────────────────────────────────────────
 
-    /**
-     * Set up the BannerAdView (size + listener) but do NOT call loadAd().
-     *
-     * The banner is loaded lazily: the first time showBanner() is called from
-     * JS (which only happens when the gameplay scene is active), we call
-     * loadAd() and, once it resolves, make the view visible.
-     *
-     * This ensures the banner is NEVER shown on the loading screen or main menu,
-     * even if there is a race condition in the JS layer poller.
-     */
     private void initBannerAd() {
         bannerAdView = findViewById(R.id.bannerAdView);
 
@@ -191,14 +208,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdLoaded() {
                 Log.d(TAG, "Banner loaded");
-                // Only show the banner if showBanner() is still pending
-                // (i.e. JS hasn't called hideBanner() in the meantime).
                 if (bannerShouldBeVisible) {
                     runOnUiThread(() -> {
                         if (bannerAdView != null) bannerAdView.setVisibility(View.VISIBLE);
                     });
                 } else {
-                    // hideBanner() was called while the ad was loading — stay hidden.
                     runOnUiThread(() -> {
                         if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
                     });
@@ -207,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdFailedToLoad(@NonNull AdRequestError error) {
                 Log.w(TAG, "Banner failed: " + error.getDescription());
-                bannerLoadStarted = false; // allow retry on next showBanner() call
+                bannerLoadStarted = false;
                 runOnUiThread(() -> {
                     if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
                 });
@@ -215,43 +229,24 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onAdClicked()                               {}
             @Override public void onImpression(ImpressionData impressionData) {}
         });
-
-        // DO NOT call bannerAdView.loadAd() here.
-        // The banner will be loaded on the first showBanner() call.
     }
 
-    // ── Banner show / hide (called from JS via AndroidBridge) ────────────────
+    // ── Banner show / hide ────────────────────────────────────────────────────
 
-    /**
-     * Called by JS when the gameplay scene becomes active.
-     *
-     * First call: starts loading the banner ad from Yandex. The banner
-     * becomes visible once onAdLoaded() fires (typically ~1 second).
-     *
-     * Subsequent calls (e.g. player resumes after Game Over): banner is
-     * already loaded so it becomes visible immediately.
-     */
     void showBanner() {
         runOnUiThread(() -> {
             if (bannerAdView == null) return;
             bannerShouldBeVisible = true;
             if (!bannerLoadStarted) {
-                // First time — kick off the ad request now
                 bannerLoadStarted = true;
                 bannerAdView.loadAd(new AdRequest.Builder(BANNER_AD_UNIT_ID).build());
-                // onAdLoaded() will call setVisibility(VISIBLE) once the ad arrives
                 Log.d(TAG, "Banner: first load requested (gameplay started)");
             } else {
-                // Ad already loaded or loading — show it right away
                 bannerAdView.setVisibility(View.VISIBLE);
             }
         });
     }
 
-    /**
-     * Called by JS when a non-gameplay screen is active (Menu, Game Over,
-     * Shop, Settings).
-     */
     void hideBanner() {
         runOnUiThread(() -> {
             bannerShouldBeVisible = false;
@@ -279,7 +274,6 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    /** Called from AndroidBridge (JS: window.AndroidBridge.showInterstitialAd()) */
     void showInterstitialAd() {
         runOnUiThread(() -> {
             if (interstitialAd != null) {
@@ -318,11 +312,6 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    /**
-     * Called from AndroidBridge.
-     * After the user watches the ad to completion the game receives
-     * window.onRewardedAdComplete() so it can give coins / lives / etc.
-     */
     void showRewardedAd(Runnable onRewarded) {
         pendingRewardCallback = onRewarded;
         runOnUiThread(() -> {
@@ -383,7 +372,7 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onAdDismissed() {
                 appOpenAdShowing = false;
                 appOpenAd = null;
-                loadAppOpenAd();   // preload the next one immediately
+                loadAppOpenAd();
             }
             @Override public void onAdClicked()                       {}
             @Override public void onAdImpression(ImpressionData d)    {}

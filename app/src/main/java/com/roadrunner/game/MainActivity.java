@@ -4,7 +4,9 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
+import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -72,6 +74,12 @@ public class MainActivity extends AppCompatActivity {
     private boolean         isFirstStart       = true;
     private boolean         appWasInBackground = false;
 
+    // ── Network monitoring ────────────────────────────────────────────────────
+    private ConnectivityManager         connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private AlertDialog                 noNetworkDialog;   // currently showing dialog, if any
+    private boolean                     appStarted = false; // true once startApp() has run
+
     // ── Lifecycle ────────────────────────────────────────────────────────────
 
     @Override
@@ -79,16 +87,22 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        connectivityManager =
+                (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        registerNetworkCallback();
+
         if (!isNetworkAvailable()) {
             showNoNetworkDialog();
-            return;
+        } else {
+            startApp();
         }
-
-        startApp();
     }
 
     /** Called once we confirm there is a network connection. */
     private void startApp() {
+        appStarted = true;
+
         YandexAds.initialize(this, () -> {
             Log.d(TAG, "Yandex MobileAds SDK initialized");
             loadInterstitialAd();
@@ -121,6 +135,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        unregisterNetworkCallback();
+        if (noNetworkDialog != null && noNetworkDialog.isShowing()) noNetworkDialog.dismiss();
         if (bannerAdView   != null) bannerAdView.destroy();
         if (interstitialAd != null) interstitialAd.setAdEventListener(null);
         if (rewardedAd     != null) rewardedAd.setAdEventListener(null);
@@ -137,13 +153,57 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ── Network check ─────────────────────────────────────────────────────────
+    // ── Network monitoring ────────────────────────────────────────────────────
+
+    private void registerNetworkCallback() {
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(@NonNull Network network) {
+                // Network came back — dismiss the dialog if it's showing
+                runOnUiThread(() -> {
+                    if (noNetworkDialog != null && noNetworkDialog.isShowing()) {
+                        noNetworkDialog.dismiss();
+                        noNetworkDialog = null;
+                        // If the app hasn't started yet (offline at launch), start it now
+                        if (!appStarted) {
+                            startApp();
+                        }
+                    }
+                });
+            }
+
+            @Override
+            public void onLost(@NonNull Network network) {
+                // Network dropped mid-session — block the game immediately
+                runOnUiThread(() -> {
+                    if (noNetworkDialog == null || !noNetworkDialog.isShowing()) {
+                        showNoNetworkDialog();
+                    }
+                });
+            }
+        };
+
+        NetworkRequest request = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build();
+        connectivityManager.registerNetworkCallback(request, networkCallback);
+    }
+
+    private void unregisterNetworkCallback() {
+        if (networkCallback != null && connectivityManager != null) {
+            try {
+                connectivityManager.unregisterNetworkCallback(networkCallback);
+            } catch (Exception e) {
+                Log.w(TAG, "Error unregistering network callback: " + e.getMessage());
+            }
+            networkCallback = null;
+        }
+    }
 
     private boolean isNetworkAvailable() {
-        ConnectivityManager cm =
-                (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (cm == null) return false;
-        NetworkCapabilities caps = cm.getNetworkCapabilities(cm.getActiveNetwork());
+        if (connectivityManager == null) return false;
+        NetworkCapabilities caps =
+                connectivityManager.getNetworkCapabilities(connectivityManager.getActiveNetwork());
         return caps != null && (
                 caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)     ||
                 caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
@@ -151,13 +211,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showNoNetworkDialog() {
-        new AlertDialog.Builder(this)
+        // Dismiss any existing dialog before showing a new one
+        if (noNetworkDialog != null && noNetworkDialog.isShowing()) return;
+
+        noNetworkDialog = new AlertDialog.Builder(this)
                 .setTitle("No Internet Connection")
                 .setMessage("Road Runner requires an internet connection to play. Please connect to the internet and try again.")
                 .setCancelable(false)
                 .setPositiveButton("Retry", (dialog, which) -> {
+                    noNetworkDialog = null;
                     if (isNetworkAvailable()) {
-                        startApp();
+                        if (!appStarted) startApp();
                     } else {
                         showNoNetworkDialog();
                     }
@@ -325,10 +389,10 @@ public class MainActivity extends AppCompatActivity {
                             pendingRewardCallback = null;
                         }
                     }
-                    @Override public void onAdShown()    { Log.d(TAG, "Rewarded shown"); }
+                    @Override public void onAdShown()     { Log.d(TAG, "Rewarded shown"); }
                     @Override public void onAdDismissed() { rewardedAd = null; loadRewardedAd(); }
                     @Override public void onAdFailedToShow(@NonNull AdError e) { loadRewardedAd(); }
-                    @Override public void onAdClicked()  {}
+                    @Override public void onAdClicked()   {}
                     @Override public void onAdImpression(ImpressionData d) {}
                 });
                 rewardedAd.show(MainActivity.this);

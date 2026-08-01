@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.TextView;
@@ -246,18 +247,49 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowContentAccess(true);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
+        // Allow Web Audio API to start without waiting for a user gesture.
+        // Without this, the AudioContext stays "suspended" in some WebView versions
+        // and Howler's masterGain never applies — causing the volume slider to have
+        // no effect on the actual audio output.
+        settings.setMediaPlaybackRequiresUserGesture(false);
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        // Required to unlock full Web Audio API support inside WebView
+        // (including AudioContext creation and GainNode processing).
+        webView.setWebChromeClient(new WebChromeClient());
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
 
         final WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
 
+        // JS patch injected after the game page loads:
+        // On every user touch, resume the Howler AudioContext if it's suspended.
+        // When the context is suspended, setValueAtTime() on masterGain is queued
+        // but never processed — making the volume slider appear to do nothing.
+        final String audioContextResumePatch =
+            "(function() {" +
+            "  function resumeCtx() {" +
+            "    if (typeof Howler !== 'undefined' && Howler.ctx && Howler.ctx.state !== 'running') {" +
+            "      Howler.ctx.resume();" +
+            "    }" +
+            "  }" +
+            "  document.addEventListener('touchstart', resumeCtx, { passive: true });" +
+            "  document.addEventListener('touchend',   resumeCtx, { passive: true });" +
+            "  document.addEventListener('click',      resumeCtx);" +
+            "})();";
+
         webView.setWebViewClient(new WebViewClientCompat() {
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(
                     WebView view, android.webkit.WebResourceRequest request) {
                 return assetLoader.shouldInterceptRequest(request.getUrl());
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                view.evaluateJavascript(audioContextResumePatch, null);
+                Log.d(TAG, "AudioContext resume patch injected");
             }
         });
 

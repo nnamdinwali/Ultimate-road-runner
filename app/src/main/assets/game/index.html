@@ -478,6 +478,31 @@
             document.addEventListener("click", _startBgm);
             document.addEventListener("touchend", _startBgm);
 
+            /* Sync BGM volume with the in-game slider
+             * The BGM is a plain <audio> element outside GDevelop's Howler
+             * sound system, so Howler.volume() never touches it. This patch
+             * wraps Howler.volume() so every slider change also updates _bgm.
+             * _bgmBase (0.5) is the intended full-volume level; the BGM scales
+             * proportionally: bgm = 0.5 × (sliderValue / 100). */
+            (function() {
+                var _bgmBase = _bgm.volume; // 0.5
+                function _patchHowlerBgm() {
+                    if (typeof Howler === 'undefined') { setTimeout(_patchHowlerBgm, 200); return; }
+                    // Sync immediately to whatever volume GDevelop restored from save
+                    _bgm.volume = _bgmBase * Math.max(0, Math.min(1, Howler._volume));
+                    // Wrap Howler.volume so every future change also moves the BGM
+                    var _origVol = Howler.volume.bind(Howler);
+                    Howler.volume = function(val) {
+                        var result = _origVol(val);
+                        if (typeof val !== 'undefined' && window._gmBgm) {
+                            window._gmBgm.volume = _bgmBase * Math.max(0, Math.min(1, parseFloat(val) || 0));
+                        }
+                        return result;
+                    };
+                }
+                _patchHowlerBgm();
+            })();
+
             /* Settings layer watcher */
             var _settingsWasVisible = false;
             function watchSettingsLayer() {

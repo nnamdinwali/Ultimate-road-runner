@@ -49,4 +49,6 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.9.0'
     implementation 'com.yandex.android:mobileads:8.2.0'
+    // Unity Ads mediation adapter — brings in Unity Ads SDK 4.14.2 automatically
+    implementation 'com.yandex.ads.mediation:mobileads-unityads:4.14.2.3'
 }

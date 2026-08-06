@@ -11,6 +11,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url 'https://artifactory.mobileadx.ru/artifactory/yandex-mobile-ads-sdk-android' }
+        maven { url 'https://maven.yandex.net/artifactory/yandex-mobile-ads-sdk-android' }
     }
 }
 rootProject.name = "RoadRunner"

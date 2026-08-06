@@ -35,8 +35,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     packagingOptions {
@@ -48,6 +48,6 @@ android {
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.webkit:webkit:1.9.0'
-    implementation 'com.yandex.android:mobileads:8.2.0'
-    implementation 'com.yandex.ads.mediation:mobileads-unityads:4.17.0.2'
+    implementation 'com.yandex.ads.mediation:mobileads:8.0.0.0'
+    implementation 'com.yandex.ads.mediation:mobileads-unityads:4.16.5.0'
 }

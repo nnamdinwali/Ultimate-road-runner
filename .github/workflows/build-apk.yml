@@ -32,6 +32,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Fix Yandex Maven DNS (artifactory.mobileadx.ru has no public A record)
+        run: echo "83.222.96.170 artifactory.mobileadx.ru" | sudo tee -a /etc/hosts
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 

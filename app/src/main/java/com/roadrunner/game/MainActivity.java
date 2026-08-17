@@ -52,7 +52,6 @@ import com.yandex.mobile.ads.rewarded.RewardedAdEventListener;
 import com.yandex.mobile.ads.rewarded.RewardedAdLoadListener;
 import com.yandex.mobile.ads.rewarded.RewardedAdLoader;
 import com.yandex.mobile.ads.nativeads.NativeAd;
-import com.yandex.mobile.ads.nativeads.NativeAdException;
 import com.yandex.mobile.ads.nativeads.NativeAdLoader;
 import com.yandex.mobile.ads.nativeads.NativeAdLoadListener;
 import com.yandex.mobile.ads.nativeads.NativeAdView;
@@ -419,16 +418,11 @@ public class MainActivity extends AppCompatActivity {
                     .setSponsoredView(sponsored)
                     .setWarningView(warning)
                     .build();
-            try {
-                ad.bindNativeAd(binder);
-                ad.setNativeAdEventListener(new NativeAdEventLogger());
-                nativeAdContainer.removeAllViews();
-                nativeAdContainer.addView(adView);
-                nativeAdContainer.setVisibility(nativeShouldBeVisible ? View.VISIBLE : View.GONE);
-            } catch (NativeAdException error) {
-                Log.w(TAG, "Native ad could not be bound: " + error.getMessage());
-                nativeAdContainer.setVisibility(View.GONE);
-            }
+            ad.bindNativeAd(binder);
+            ad.setNativeAdEventListener(new NativeAdEventLogger());
+            nativeAdContainer.removeAllViews();
+            nativeAdContainer.addView(adView);
+            nativeAdContainer.setVisibility(nativeShouldBeVisible ? View.VISIBLE : View.GONE);
         });
     }
 

@@ -83,6 +83,7 @@ public class MainActivity extends AppCompatActivity {
     private FrameLayout feedContainer;
     private RecyclerView feedRecyclerView;
     private NativeAdLoader nativeAdLoader;
+    private NativeAdLoadListener nativeAdLoadListener;
     private NativeAd nativeAd;
     private FeedAd feedAd;
     private FeedAdAdapter feedAdAdapter;
@@ -337,7 +338,7 @@ public class MainActivity extends AppCompatActivity {
         if (nativeAdContainer == null) return;
 
         nativeAdLoader = new NativeAdLoader(this);
-        nativeAdLoader.setNativeAdLoadListener(new NativeAdLoadListener() {
+        nativeAdLoadListener = new NativeAdLoadListener() {
             @Override
             public void onAdLoaded(@NonNull NativeAd ad) {
                 nativeAd = ad;
@@ -353,13 +354,15 @@ public class MainActivity extends AppCompatActivity {
                     if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
                 });
             }
-        });
+        };
         loadNativeAd();
     }
 
     private void loadNativeAd() {
-        if (nativeAdLoader == null) return;
-        nativeAdLoader.loadAd(new AdRequest.Builder(NATIVE_AD_UNIT_ID).build());
+        if (nativeAdLoader == null || nativeAdLoadListener == null) return;
+        nativeAdLoader.loadAd(
+                new AdRequest.Builder(NATIVE_AD_UNIT_ID).build(),
+                nativeAdLoadListener);
     }
 
     private void renderNativeAd(@NonNull NativeAd ad) {

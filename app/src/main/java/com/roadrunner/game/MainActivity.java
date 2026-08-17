@@ -326,9 +326,19 @@ public class MainActivity extends AppCompatActivity {
                     if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
                 });
             }
-            @Override public void onAdClicked()                               {}
-            @Override public void onImpression(ImpressionData impressionData) {}
+            @Override public void onAdClicked() {
+                Log.d(TAG, "Banner clicked");
+            }
+            @Override public void onImpression(ImpressionData impressionData) {
+                Log.i(TAG, "Banner impression: " + impressionData);
+            }
         });
+
+        // Preload immediately so a missed WebView bridge callback cannot prevent
+        // the Yandex request and its configured mediation waterfall from starting.
+        bannerLoadStarted = true;
+        bannerAdView.loadAd(new AdRequest.Builder(BANNER_AD_UNIT_ID).build());
+        Log.d(TAG, "Banner preload requested");
     }
 
     // ── Banner show / hide ────────────────────────────────────────────────────
@@ -341,9 +351,8 @@ public class MainActivity extends AppCompatActivity {
                 bannerLoadStarted = true;
                 bannerAdView.loadAd(new AdRequest.Builder(BANNER_AD_UNIT_ID).build());
                 Log.d(TAG, "Banner: first load requested (gameplay started)");
-            } else {
-                bannerAdView.setVisibility(View.VISIBLE);
             }
+            bannerAdView.setVisibility(View.VISIBLE);
         });
     }
 
@@ -381,8 +390,8 @@ public class MainActivity extends AppCompatActivity {
                     @Override public void onAdShown()               { Log.d(TAG, "Interstitial shown"); }
                     @Override public void onAdFailedToShow(@NonNull AdError e) { loadInterstitialAd(); }
                     @Override public void onAdDismissed()           { interstitialAd = null; loadInterstitialAd(); }
-                    @Override public void onAdClicked()             {}
-                    @Override public void onAdImpression(ImpressionData d) {}
+                    @Override public void onAdClicked()             { Log.d(TAG, "Interstitial clicked"); }
+                    @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "Interstitial impression: " + d); }
                 });
                 interstitialAd.show(MainActivity.this);
             } else {
@@ -428,8 +437,8 @@ public class MainActivity extends AppCompatActivity {
                     @Override public void onAdShown()     { Log.d(TAG, "Rewarded shown"); }
                     @Override public void onAdDismissed() { rewardedAd = null; loadRewardedAd(); }
                     @Override public void onAdFailedToShow(@NonNull AdError e) { loadRewardedAd(); }
-                    @Override public void onAdClicked()   {}
-                    @Override public void onAdImpression(ImpressionData d) {}
+                    @Override public void onAdClicked()   { Log.d(TAG, "Rewarded clicked"); }
+                    @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "Rewarded impression: " + d); }
                 });
                 rewardedAd.show(MainActivity.this);
             } else {
@@ -474,8 +483,8 @@ public class MainActivity extends AppCompatActivity {
                 appOpenAd = null;
                 loadAppOpenAd();
             }
-            @Override public void onAdClicked()                       {}
-            @Override public void onAdImpression(ImpressionData d)    {}
+            @Override public void onAdClicked()                       { Log.d(TAG, "App Open clicked"); }
+            @Override public void onAdImpression(ImpressionData d)    { Log.i(TAG, "App Open impression: " + d); }
         });
         appOpenAd.show(MainActivity.this);
     }

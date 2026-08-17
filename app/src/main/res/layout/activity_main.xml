@@ -2,8 +2,10 @@
 <!--
     Layout structure (bottom-up stacking in FrameLayout):
       1. WebView       — full screen, the GDevelop game
-      2. bannerAdView  — sticky banner at bottom (GONE until gameplay starts)
-      3. privacyPolicyBtn — floats at bottom corner
+      2. feedContainer  — optional Yandex feed placement (GONE until requested)
+      3. nativeAdContainer — optional Yandex native placement (GONE until requested)
+      4. bannerAdView  — sticky banner at bottom (GONE until gameplay starts)
+      5. privacyPolicyBtn — floats at bottom corner
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/rootLayout"
@@ -14,6 +16,37 @@
         android:id="@+id/webView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <FrameLayout
+        android:id="@+id/feedContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:visibility="gone"
+        android:background="#F20B1220"
+        android:padding="4dp">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/feedRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipToPadding="false" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/nativeAdContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginTop="12dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:visibility="gone"
+        android:background="#F20B1220"
+        android:padding="8dp" />
 
     <!-- Yandex sticky banner — size set programmatically in MainActivity -->
     <com.yandex.mobile.ads.banner.BannerAdView

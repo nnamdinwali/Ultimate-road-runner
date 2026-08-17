@@ -12,10 +12,18 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -43,6 +51,17 @@ import com.yandex.mobile.ads.rewarded.RewardedAd;
 import com.yandex.mobile.ads.rewarded.RewardedAdEventListener;
 import com.yandex.mobile.ads.rewarded.RewardedAdLoadListener;
 import com.yandex.mobile.ads.rewarded.RewardedAdLoader;
+import com.yandex.mobile.ads.nativeads.NativeAd;
+import com.yandex.mobile.ads.nativeads.NativeAdException;
+import com.yandex.mobile.ads.nativeads.NativeAdLoader;
+import com.yandex.mobile.ads.nativeads.NativeAdLoadListener;
+import com.yandex.mobile.ads.nativeads.NativeAdView;
+import com.yandex.mobile.ads.nativeads.NativeAdViewBinder;
+import com.yandex.mobile.ads.feed.FeedAd;
+import com.yandex.mobile.ads.feed.FeedAdAdapter;
+import com.yandex.mobile.ads.feed.FeedAdAppearance;
+import com.yandex.mobile.ads.feed.FeedAdEventListener;
+import com.yandex.mobile.ads.feed.FeedAdLoadListener;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -55,9 +74,19 @@ public class MainActivity extends AppCompatActivity {
     private static final String INTERSTITIAL_AD_UNIT_ID = "R-M-19594035-1";
     private static final String REWARDED_AD_UNIT_ID     = "R-M-19594035-4";
     private static final String APP_OPEN_AD_UNIT_ID     = "R-M-19594035-3";
+    private static final String NATIVE_AD_UNIT_ID       = "R-M-19594035-8";
+    private static final String FEED_AD_UNIT_ID         = "R-M-19594035-9";
 
     WebView webView;
     private BannerAdView bannerAdView;
+    private FrameLayout nativeAdContainer;
+    private RecyclerView feedRecyclerView;
+    private NativeAdLoader nativeAdLoader;
+    private NativeAd nativeAd;
+    private FeedAd feedAd;
+    private FeedAdAdapter feedAdAdapter;
+    private boolean nativeShouldBeVisible = false;
+    private boolean feedShouldBeVisible = false;
 
     private boolean bannerLoadStarted     = false;
     private boolean bannerShouldBeVisible = false;
@@ -113,6 +142,8 @@ public class MainActivity extends AppCompatActivity {
             loadInterstitialAd();
             loadRewardedAd();
             loadAppOpenAd();
+            initNativeAd();
+            initFeedAd();
         });
 
         initWebView();
@@ -143,6 +174,8 @@ public class MainActivity extends AppCompatActivity {
         unregisterNetworkCallback();
         if (noNetworkDialog != null && noNetworkDialog.isShowing()) noNetworkDialog.dismiss();
         if (bannerAdView   != null) bannerAdView.destroy();
+        if (nativeAd       != null) nativeAd.setNativeAdEventListener(null);
+        if (feedAd         != null) feedAd.setLoadListener(null);
         if (interstitialAd != null) interstitialAd.setAdEventListener(null);
         if (rewardedAd     != null) rewardedAd.setAdEventListener(null);
         if (appOpenAd      != null) appOpenAd.setAdEventListener(null);
@@ -294,6 +327,199 @@ public class MainActivity extends AppCompatActivity {
         });
 
         webView.loadUrl("https://appassets.androidplatform.net/assets/game/index.html");
+    }
+
+    // ── Native Ad ───────────────────────────────────────────────────────────
+
+    private void initNativeAd() {
+        nativeAdContainer = findViewById(R.id.nativeAdContainer);
+        if (nativeAdContainer == null) return;
+
+        nativeAdLoader = new NativeAdLoader(this);
+        nativeAdLoader.setNativeAdLoadListener(new NativeAdLoadListener() {
+            @Override
+            public void onAdLoaded(@NonNull NativeAd ad) {
+                nativeAd = ad;
+                Log.d(TAG, "Native ad loaded");
+                renderNativeAd(ad);
+            }
+
+            @Override
+            public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                nativeAd = null;
+                Log.w(TAG, "Native ad failed: " + error.getDescription());
+                runOnUiThread(() -> {
+                    if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
+                });
+            }
+        });
+        loadNativeAd();
+    }
+
+    private void loadNativeAd() {
+        if (nativeAdLoader == null) return;
+        nativeAdLoader.loadAd(new AdRequest.Builder(NATIVE_AD_UNIT_ID).build());
+    }
+
+    private void renderNativeAd(@NonNull NativeAd ad) {
+        runOnUiThread(() -> {
+            if (nativeAdContainer == null) return;
+
+            NativeAdView adView = new NativeAdView(this);
+            LinearLayout content = new LinearLayout(this);
+            content.setOrientation(LinearLayout.VERTICAL);
+            content.setPadding(dp(8), dp(6), dp(8), dp(6));
+
+            TextView title = makeNativeText(16, true);
+            TextView body = makeNativeText(13, false);
+            TextView domain = makeNativeText(11, false);
+            TextView sponsored = makeNativeText(10, false);
+            TextView warning = makeNativeText(10, false);
+            TextView price = makeNativeText(12, true);
+            Button callToAction = new Button(this);
+            callToAction.setTextSize(12);
+            ImageView icon = new ImageView(this);
+            icon.setAdjustViewBounds(true);
+            com.yandex.mobile.ads.nativeads.MediaView mediaView =
+                    new com.yandex.mobile.ads.nativeads.MediaView(this);
+            mediaView.setMinimumHeight(dp(160));
+
+            content.addView(title, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            content.addView(domain, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            content.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
+            content.addView(mediaView, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(160)));
+            content.addView(body, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            content.addView(price, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            content.addView(callToAction, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            content.addView(sponsored, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            content.addView(warning, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            adView.addView(content, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            NativeAdViewBinder binder = new NativeAdViewBinder.Builder(adView)
+                    .setTitleView(title)
+                    .setBodyView(body)
+                    .setDomainView(domain)
+                    .setMediaView(mediaView)
+                    .setPriceView(price)
+                    .setCallToActionView(callToAction)
+                    .setIconView(icon)
+                    .setSponsoredView(sponsored)
+                    .setWarningView(warning)
+                    .build();
+            try {
+                ad.bindNativeAd(binder);
+                ad.setNativeAdEventListener(new NativeAdEventLogger());
+                nativeAdContainer.removeAllViews();
+                nativeAdContainer.addView(adView);
+                nativeAdContainer.setVisibility(nativeShouldBeVisible ? View.VISIBLE : View.GONE);
+            } catch (NativeAdException error) {
+                Log.w(TAG, "Native ad could not be bound: " + error.getMessage());
+                nativeAdContainer.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    private TextView makeNativeText(int sizeSp, boolean bold) {
+        TextView view = new TextView(this);
+        view.setTextSize(sizeSp);
+        view.setTextColor(0xFFFFFFFF);
+        if (bold) view.setTypeface(null, android.graphics.Typeface.BOLD);
+        return view;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private class NativeAdEventLogger implements com.yandex.mobile.ads.nativeads.NativeAdEventListener {
+        @Override public void onAdClicked() { Log.d(TAG, "Native ad clicked"); }
+        @Override public void onLeftApplication() { Log.d(TAG, "Native ad left application"); }
+        @Override public void onReturnedToApplication() { Log.d(TAG, "Native ad returned"); }
+        @Override public void onImpression(ImpressionData data) { Log.i(TAG, "Native impression: " + data); }
+    }
+
+    void showNativeAd() {
+        runOnUiThread(() -> {
+            nativeShouldBeVisible = true;
+            if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
+            if (nativeAdContainer != null) {
+                nativeAdContainer.setVisibility(nativeAd == null ? View.GONE : View.VISIBLE);
+                if (nativeAd == null) loadNativeAd();
+            }
+        });
+    }
+
+    void hideNativeAd() {
+        runOnUiThread(() -> {
+            nativeShouldBeVisible = false;
+            if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
+        });
+    }
+
+    // ── Feed Ad ──────────────────────────────────────────────────────────────
+
+    private void initFeedAd() {
+        feedRecyclerView = findViewById(R.id.feedRecyclerView);
+        FrameLayout feedContainer = findViewById(R.id.feedContainer);
+        if (feedRecyclerView == null || feedContainer == null) return;
+
+        int screenWidthDp = Math.round(getResources().getDisplayMetrics().widthPixels /
+                getResources().getDisplayMetrics().density);
+        int cardWidthDp = Math.max(280, screenWidthDp - 48);
+        FeedAdAppearance appearance = new FeedAdAppearance.Builder(cardWidthDp)
+                .setCardCornerRadius(16.0)
+                .build();
+        AdRequest request = new AdRequest.Builder(FEED_AD_UNIT_ID).build();
+        feedAd = new FeedAd.Builder(this, request, appearance).build();
+        feedAd.setLoadListener(new FeedAdLoadListener() {
+            @Override public void onAdLoaded() {
+                Log.d(TAG, "Feed ad loaded");
+                runOnUiThread(() -> {
+                    if (feedRecyclerView != null) {
+                        feedRecyclerView.setVisibility(feedShouldBeVisible ? View.VISIBLE : View.GONE);
+                    }
+                });
+            }
+            @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                Log.w(TAG, "Feed ad failed: " + error.getDescription());
+                runOnUiThread(() -> {
+                    if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
+                });
+            }
+        });
+        feedAdAdapter = new FeedAdAdapter(feedAd);
+        feedAdAdapter.setEventListener(new FeedAdEventListener() {
+            @Override public void onAdClicked() { Log.d(TAG, "Feed ad clicked"); }
+            @Override public void onAdImpression(ImpressionData data) { Log.i(TAG, "Feed impression: " + data); }
+        });
+        feedRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        feedRecyclerView.setAdapter(feedAdAdapter);
+        feedRecyclerView.setVisibility(View.GONE);
+        feedAd.preloadAd();
+    }
+
+    void showFeedAd() {
+        runOnUiThread(() -> {
+            feedShouldBeVisible = true;
+            if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
+            if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.VISIBLE);
+        });
+    }
+
+    void hideFeedAd() {
+        runOnUiThread(() -> {
+            feedShouldBeVisible = false;
+            if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
+        });
     }
 
     // ── Banner Ad ────────────────────────────────────────────────────────────

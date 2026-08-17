@@ -80,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
     WebView webView;
     private BannerAdView bannerAdView;
     private FrameLayout nativeAdContainer;
+    private FrameLayout feedContainer;
     private RecyclerView feedRecyclerView;
     private NativeAdLoader nativeAdLoader;
     private NativeAd nativeAd;
@@ -469,7 +470,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void initFeedAd() {
         feedRecyclerView = findViewById(R.id.feedRecyclerView);
-        FrameLayout feedContainer = findViewById(R.id.feedContainer);
+        feedContainer = findViewById(R.id.feedContainer);
         if (feedRecyclerView == null || feedContainer == null) return;
 
         int screenWidthDp = Math.round(getResources().getDisplayMetrics().widthPixels /
@@ -492,6 +493,7 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
                 Log.w(TAG, "Feed ad failed: " + error.getDescription());
                 runOnUiThread(() -> {
+                    if (feedContainer != null) feedContainer.setVisibility(View.GONE);
                     if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
                 });
             }
@@ -503,6 +505,7 @@ public class MainActivity extends AppCompatActivity {
         });
         feedRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         feedRecyclerView.setAdapter(feedAdAdapter);
+        feedContainer.setVisibility(View.GONE);
         feedRecyclerView.setVisibility(View.GONE);
         feedAd.preloadAd();
     }
@@ -511,6 +514,7 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             feedShouldBeVisible = true;
             if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
+            if (feedContainer != null) feedContainer.setVisibility(View.VISIBLE);
             if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.VISIBLE);
         });
     }
@@ -518,6 +522,7 @@ public class MainActivity extends AppCompatActivity {
     void hideFeedAd() {
         runOnUiThread(() -> {
             feedShouldBeVisible = false;
+            if (feedContainer != null) feedContainer.setVisibility(View.GONE);
             if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
         });
     }

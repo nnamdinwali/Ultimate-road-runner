@@ -154,6 +154,8 @@
             //   1. Hide Watch-Ad button when Game Over layer disappears (Retry tapped)
             //   2. Show banner ONLY during active gameplay; hide on Menu/Game Over/Shop/Settings
             var _bannerShown = false;
+            var _nativeShown = false;
+            var _feedShown = false;
             var _seenMenu = false; // banner only allowed after Menu was seen once (game fully loaded)
             var UI_LAYERS = ["Menu", "Game Over", "Shop", "Settings"];
             setInterval(function() {
@@ -172,7 +174,15 @@
 
                     // 2. Banner: hide on any UI screen, show during active gameplay only
                     var anyUI = false;
-                    try { var _ml = scene.getLayer("Menu"); if (_ml && _ml.isVisible()) _seenMenu = true; } catch(_me) {}
+                    var menuVisible = false;
+                    var shopVisible = false;
+                    var settingsVisible = false;
+                    try {
+                        var _ml = scene.getLayer("Menu");
+                        if (_ml && _ml.isVisible()) { _seenMenu = true; menuVisible = true; }
+                    } catch(_me) {}
+                    try { var _sl = scene.getLayer("Shop"); if (_sl && _sl.isVisible()) shopVisible = true; } catch(_se) {}
+                    try { var _setl = scene.getLayer("Settings"); if (_setl && _setl.isVisible()) settingsVisible = true; } catch(_ste) {}
                     for (var i = 0; i < UI_LAYERS.length; i++) {
                         try {
                             var l = scene.getLayer(UI_LAYERS[i]);
@@ -191,7 +201,35 @@
                         }
                     }
 
-                    // 3. Detect moment active gameplay begins (no UI visible after menu seen once).
+                    // 3. Native and Feed placements communicate through AndroidBridge.
+                    // Native is used on the Menu; Feed is used in the Shop. Both remain
+                    // hidden during active gameplay, Game Over, and Settings.
+                    var nativeTarget = menuVisible && !settingsVisible;
+                    var feedTarget = shopVisible && !settingsVisible;
+                    if (nativeTarget && !_nativeShown) {
+                        _nativeShown = true;
+                        if (window.AndroidBridge && typeof window.AndroidBridge.showNativeAd === 'function') {
+                            window.AndroidBridge.showNativeAd();
+                        }
+                    } else if (!nativeTarget && _nativeShown) {
+                        _nativeShown = false;
+                        if (window.AndroidBridge && typeof window.AndroidBridge.hideNativeAd === 'function') {
+                            window.AndroidBridge.hideNativeAd();
+                        }
+                    }
+                    if (feedTarget && !_feedShown) {
+                        _feedShown = true;
+                        if (window.AndroidBridge && typeof window.AndroidBridge.showFeedAd === 'function') {
+                            window.AndroidBridge.showFeedAd();
+                        }
+                    } else if (!feedTarget && _feedShown) {
+                        _feedShown = false;
+                        if (window.AndroidBridge && typeof window.AndroidBridge.hideFeedAd === 'function') {
+                            window.AndroidBridge.hideFeedAd();
+                        }
+                    }
+
+                    // 4. Detect moment active gameplay begins (no UI visible after menu seen once).
                     //    Snapshot coin total as the run baseline so we know what was earned this run.
                     var inGameplay = !anyUI && _seenMenu;
                     if (inGameplay && !_wasInGameplay) {

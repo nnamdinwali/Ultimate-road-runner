@@ -446,8 +446,6 @@ public class MainActivity extends AppCompatActivity {
 
     private class NativeAdEventLogger implements com.yandex.mobile.ads.nativeads.NativeAdEventListener {
         @Override public void onAdClicked() { Log.d(TAG, "Native ad clicked"); }
-        @Override public void onLeftApplication() { Log.d(TAG, "Native ad left application"); }
-        @Override public void onReturnedToApplication() { Log.d(TAG, "Native ad returned"); }
         @Override public void onImpression(ImpressionData data) { Log.i(TAG, "Native impression: " + data); }
     }
 
@@ -504,7 +502,7 @@ public class MainActivity extends AppCompatActivity {
         feedAdAdapter = new FeedAdAdapter(feedAd);
         feedAdAdapter.setEventListener(new FeedAdEventListener() {
             @Override public void onAdClicked() { Log.d(TAG, "Feed ad clicked"); }
-            @Override public void onAdImpression(ImpressionData data) { Log.i(TAG, "Feed impression: " + data); }
+            @Override public void onImpression(ImpressionData data) { Log.i(TAG, "Feed impression: " + data); }
         });
         feedRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         feedRecyclerView.setAdapter(feedAdAdapter);

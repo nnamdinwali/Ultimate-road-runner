@@ -87,7 +87,9 @@ public class MainActivity extends AppCompatActivity {
     private FeedAd feedAd;
     private FeedAdAdapter feedAdAdapter;
     private boolean nativeShouldBeVisible = false;
+    private boolean nativeAdRendered = false;
     private boolean feedShouldBeVisible = false;
+    private boolean feedAdLoaded = false;
 
     private boolean bannerLoadStarted     = false;
     private boolean bannerShouldBeVisible = false;
@@ -341,6 +343,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdLoaded(@NonNull NativeAd ad) {
                 nativeAd = ad;
+                nativeAdRendered = false;
                 Log.d(TAG, "Native ad loaded");
                 renderNativeAd(ad);
             }
@@ -348,6 +351,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdFailedToLoad(@NonNull AdRequestError error) {
                 nativeAd = null;
+                nativeAdRendered = false;
                 Log.w(TAG, "Native ad failed: " + error.getDescription());
                 runOnUiThread(() -> {
                     if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
@@ -422,7 +426,24 @@ public class MainActivity extends AppCompatActivity {
             ad.setNativeAdEventListener(new NativeAdEventLogger());
             nativeAdContainer.removeAllViews();
             nativeAdContainer.addView(adView);
-            nativeAdContainer.setVisibility(nativeShouldBeVisible ? View.VISIBLE : View.GONE);
+            nativeAdContainer.setVisibility(View.GONE);
+
+            // Yandex can report a loaded object while the rendered assets are
+            // still empty. Do not expose the dark placeholder until at least
+            // one meaningful native asset has been bound.
+            adView.post(() -> {
+                boolean hasText = title.getText().length() > 0
+                        || body.getText().length() > 0
+                        || domain.getText().length() > 0
+                        || callToAction.getText().length() > 0;
+                nativeAdRendered = hasText;
+                if (nativeShouldBeVisible && hasText) {
+                    nativeAdContainer.setVisibility(View.VISIBLE);
+                } else {
+                    nativeAdContainer.setVisibility(View.GONE);
+                }
+                if (!hasText) Log.w(TAG, "Native ad loaded without renderable assets");
+            });
         });
     }
 
@@ -448,8 +469,8 @@ public class MainActivity extends AppCompatActivity {
             nativeShouldBeVisible = true;
             if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
             if (nativeAdContainer != null) {
-                nativeAdContainer.setVisibility(nativeAd == null ? View.GONE : View.VISIBLE);
-                if (nativeAd == null) loadNativeAd();
+                nativeAdContainer.setVisibility(nativeAdRendered ? View.VISIBLE : View.GONE);
+                if (nativeAd == null || !nativeAdRendered) loadNativeAd();
             }
         });
     }
@@ -478,14 +499,19 @@ public class MainActivity extends AppCompatActivity {
         feedAd = new FeedAd.Builder(this, request, appearance).build();
         feedAd.setLoadListener(new FeedAdLoadListener() {
             @Override public void onAdLoaded() {
+                feedAdLoaded = true;
                 Log.d(TAG, "Feed ad loaded");
                 runOnUiThread(() -> {
+                    if (feedContainer != null) {
+                        feedContainer.setVisibility(feedShouldBeVisible ? View.VISIBLE : View.GONE);
+                    }
                     if (feedRecyclerView != null) {
                         feedRecyclerView.setVisibility(feedShouldBeVisible ? View.VISIBLE : View.GONE);
                     }
                 });
             }
             @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                feedAdLoaded = false;
                 Log.w(TAG, "Feed ad failed: " + error.getDescription());
                 runOnUiThread(() -> {
                     if (feedContainer != null) feedContainer.setVisibility(View.GONE);
@@ -509,8 +535,8 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             feedShouldBeVisible = true;
             if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
-            if (feedContainer != null) feedContainer.setVisibility(View.VISIBLE);
-            if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.VISIBLE);
+            if (feedContainer != null) feedContainer.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
+            if (feedRecyclerView != null) feedRecyclerView.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
         });
     }
 

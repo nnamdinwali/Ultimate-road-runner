@@ -45,7 +45,7 @@
         android:layout_marginStart="12dp"
         android:layout_marginEnd="12dp"
         android:visibility="gone"
-        android:background="#F20B1220"
+        android:background="@android:color/transparent"
         android:padding="8dp" />
 
     <!-- Yandex sticky banner — size set programmatically in MainActivity -->

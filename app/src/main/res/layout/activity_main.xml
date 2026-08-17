@@ -48,6 +48,24 @@
         android:background="@android:color/transparent"
         android:padding="8dp" />
 
+    <!-- App-owned close control for Native/Feed overlays. It sits outside the ad creative. -->
+    <Button
+        android:id="@+id/adCloseButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"
+        android:background="#CC0B1220"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:padding="0dp"
+        android:text="✕"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:visibility="gone"
+        android:contentDescription="Close advertisement" />
+
     <!-- Yandex sticky banner — size set programmatically in MainActivity -->
     <com.yandex.mobile.ads.banner.BannerAdView
         android:id="@+id/bannerAdView"

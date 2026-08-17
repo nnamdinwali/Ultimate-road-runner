@@ -80,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
     private BannerAdView bannerAdView;
     private FrameLayout nativeAdContainer;
     private FrameLayout feedContainer;
+    private Button adCloseButton;
     private RecyclerView feedRecyclerView;
     private NativeAdLoader nativeAdLoader;
     private NativeAdLoadListener nativeAdLoadListener;
@@ -123,6 +124,14 @@ public class MainActivity extends AppCompatActivity {
         // actually control game volume (satisfies Huawei AppGallery requirement).
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         setContentView(R.layout.activity_main);
+
+        adCloseButton = findViewById(R.id.adCloseButton);
+        if (adCloseButton != null) {
+            adCloseButton.setOnClickListener(v -> {
+                hideNativeAd();
+                hideFeedAd();
+            });
+        }
 
         connectivityManager =
                 (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -355,6 +364,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.w(TAG, "Native ad failed: " + error.getDescription());
                 runOnUiThread(() -> {
                     if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
+                    setAdCloseVisible(false);
                 });
             }
         };
@@ -439,8 +449,10 @@ public class MainActivity extends AppCompatActivity {
                 nativeAdRendered = hasText;
                 if (nativeShouldBeVisible && hasText) {
                     nativeAdContainer.setVisibility(View.VISIBLE);
+                    setAdCloseVisible(true);
                 } else {
                     nativeAdContainer.setVisibility(View.GONE);
+                    setAdCloseVisible(false);
                 }
                 if (!hasText) Log.w(TAG, "Native ad loaded without renderable assets");
             });
@@ -470,6 +482,7 @@ public class MainActivity extends AppCompatActivity {
             if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
             if (nativeAdContainer != null) {
                 nativeAdContainer.setVisibility(nativeAdRendered ? View.VISIBLE : View.GONE);
+                setAdCloseVisible(nativeAdRendered);
                 if (nativeAd == null || !nativeAdRendered) loadNativeAd();
             }
         });
@@ -479,6 +492,7 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             nativeShouldBeVisible = false;
             if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
+            if (!feedShouldBeVisible) setAdCloseVisible(false);
         });
     }
 
@@ -505,6 +519,7 @@ public class MainActivity extends AppCompatActivity {
                     if (feedContainer != null) {
                         feedContainer.setVisibility(feedShouldBeVisible ? View.VISIBLE : View.GONE);
                     }
+                    setAdCloseVisible(feedShouldBeVisible);
                     if (feedRecyclerView != null) {
                         feedRecyclerView.setVisibility(feedShouldBeVisible ? View.VISIBLE : View.GONE);
                     }
@@ -516,6 +531,7 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     if (feedContainer != null) feedContainer.setVisibility(View.GONE);
                     if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
+                    if (!nativeShouldBeVisible) setAdCloseVisible(false);
                 });
             }
         });
@@ -537,13 +553,21 @@ public class MainActivity extends AppCompatActivity {
             if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
             if (feedContainer != null) feedContainer.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
             if (feedRecyclerView != null) feedRecyclerView.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
+            setAdCloseVisible(feedAdLoaded);
         });
+    }
+
+    private void setAdCloseVisible(boolean visible) {
+        if (adCloseButton != null) {
+            adCloseButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
     }
 
     void hideFeedAd() {
         runOnUiThread(() -> {
             feedShouldBeVisible = false;
             if (feedContainer != null) feedContainer.setVisibility(View.GONE);
+            if (!nativeShouldBeVisible) setAdCloseVisible(false);
             if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
         });
     }

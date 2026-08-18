@@ -1,18 +1,23 @@
 package com.roadrunner.game;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -62,9 +67,18 @@ import com.yandex.mobile.ads.feed.FeedAdAppearance;
 import com.yandex.mobile.ads.feed.FeedAdEventListener;
 import com.yandex.mobile.ads.feed.FeedAdLoadListener;
 
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "URR";
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
+    private static final String ROCKCITY_API_BASE = "https://gamezoneapi-cp623ub2.manus.space/api";
+    private static final String PUSH_PREFS = "rockcity_push";
 
     private static final String PRIVACY_POLICY_URL =
             "https://nnamdinwali.github.io/ultimate-road-runner-privacy/";
@@ -137,6 +151,7 @@ public class MainActivity extends AppCompatActivity {
                 (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 
         registerNetworkCallback();
+        requestNotificationPermissionIfNeeded();
 
         if (!isNetworkAvailable()) {
             showNoNetworkDialog();
@@ -278,6 +293,63 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Exit", (dialog, which) -> finishAffinity())
                 .show();
+    }
+
+    /** Request Android 13+ notification permission without assuming a provider is configured. */
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_REQUEST);
+        }
+    }
+
+    /** Called by AndroidBridge when an actual FCM or HMS token is available. */
+    public void registerPushToken(String provider, String token) {
+        final String normalizedProvider = provider == null ? "" : provider.trim().toLowerCase();
+        final String normalizedToken = token == null ? "" : token.trim();
+        if (!("fcm".equals(normalizedProvider) || "hms".equals(normalizedProvider)) || normalizedToken.isEmpty()) {
+            Log.w(TAG, "Ignoring invalid push token registration request");
+            return;
+        }
+        SharedPreferences preferences = getSharedPreferences(PUSH_PREFS, MODE_PRIVATE);
+        String deviceId = preferences.getString("device_id", null);
+        if (deviceId == null) {
+            deviceId = UUID.randomUUID().toString();
+            preferences.edit().putString("device_id", deviceId).apply();
+        }
+        preferences.edit().putString("provider", normalizedProvider).putString("token", normalizedToken).apply();
+        final String finalDeviceId = deviceId;
+        new Thread(() -> submitPushToken(normalizedProvider, normalizedToken, finalDeviceId)).start();
+    }
+
+    private void submitPushToken(String provider, String token, String deviceId) {
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL(ROCKCITY_API_BASE + "/users/me/push-token");
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("PUT");
+            connection.setConnectTimeout(8000);
+            connection.setReadTimeout(8000);
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            String cookie = CookieManager.getInstance().getCookie(ROCKCITY_API_BASE);
+            if (cookie != null && !cookie.isEmpty()) connection.setRequestProperty("Cookie", cookie);
+            String payload = "{\"provider\":\"" + escapeJson(provider) + "\",\"platform\":\"android\",\"deviceId\":\"" + escapeJson(deviceId) + "\",\"token\":\"" + escapeJson(token) + "\"}";
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(payload.getBytes(StandardCharsets.UTF_8));
+            }
+            int status = connection.getResponseCode();
+            if (status >= 200 && status < 300) Log.d(TAG, "Rockcity push token registered");
+            else Log.w(TAG, "Rockcity push token registration returned HTTP " + status);
+        } catch (Exception error) {
+            Log.w(TAG, "Rockcity push token registration deferred: " + error.getMessage());
+        } finally {
+            if (connection != null) connection.disconnect();
+        }
+    }
+
+    private String escapeJson(String value) {
+        return value.replace("\\\\", "\\\\\\\\").replace("\"", "\\\"");
     }
 
     // ── WebView setup ────────────────────────────────────────────────────────

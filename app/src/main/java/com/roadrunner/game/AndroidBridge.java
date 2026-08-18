@@ -25,6 +25,17 @@ public class AndroidBridge {
         this.activity = activity;
     }
 
+    // ── Push token registration ───────────────────────────────────────────────
+
+    /**
+     * Register a real provider token once an FCM/HMS SDK is added to the shell.
+     * Example: window.AndroidBridge.registerPushToken("fcm", token)
+     */
+    @JavascriptInterface
+    public void registerPushToken(String provider, String token) {
+        activity.registerPushToken(provider, token);
+    }
+
     // ── Privacy Policy ───────────────────────────────────────────────────────
 
     @JavascriptInterface

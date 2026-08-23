@@ -225,11 +225,7 @@ public class MainActivity extends AppCompatActivity {
         if (noNetworkDialog != null && noNetworkDialog.isShowing()) noNetworkDialog.dismiss();
         if (bannerAdView != null) bannerAdView.destroy();
         if (nativeAd != null) nativeAd.setNativeAdEventListener(null);
-        if (nativeAdLoader != null) nativeAdLoader.setAdLoadListener(null);
         if (feedAd != null) feedAd.setLoadListener(null);
-        if (interstitialLoader != null) interstitialLoader.setAdLoadListener(null);
-        if (rewardedLoader != null) rewardedLoader.setAdLoadListener(null);
-        if (appOpenAdLoader != null) appOpenAdLoader.setAdLoadListener(null);
         if (interstitialAd != null) interstitialAd.setAdEventListener(null);
         if (rewardedAd != null) rewardedAd.setAdEventListener(null);
         if (appOpenAd != null) appOpenAd.setAdEventListener(null);

@@ -554,21 +554,24 @@ public class MainActivity extends AppCompatActivity {
             // Yandex can report a loaded object while the rendered assets are
             // still empty. Do not expose the dark placeholder until at least
             // one meaningful native asset has been bound.
-            adView.post(() -> {
+            adView.postDelayed(() -> {
                 boolean hasText = title.getText().length() > 0
                         || body.getText().length() > 0
                         || domain.getText().length() > 0
                         || callToAction.getText().length() > 0;
-                nativeAdRendered = hasText;
-                if (nativeShouldBeVisible && hasText) {
+                // A successfully loaded Yandex NativeAd is displayable even when
+                // a particular creative has no text field. Do not hide a valid
+                // image/media creative solely because text arrived late or is empty.
+                nativeAdRendered = true;
+                if (nativeShouldBeVisible) {
                     nativeAdContainer.setVisibility(View.VISIBLE);
                     setAdCloseVisible(true);
                 } else {
                     nativeAdContainer.setVisibility(View.GONE);
                     setAdCloseVisible(false);
                 }
-                if (!hasText) Log.w(TAG, "Native ad loaded without renderable assets");
-            });
+                if (!hasText) Log.d(TAG, "Native ad loaded with media-only or late text assets");
+            }, 250);
         });
     }
 

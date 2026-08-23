@@ -115,8 +115,6 @@
         /* ── On-death hook — save progress + show interstitial ad ───────────── */
         window._startAdTimers = function() {
             var _origOnDeath = window.gmOnDeath;
-            var _lastInterstitialTime = 0;
-            var INTERSTITIAL_COOLDOWN_MS = 60000; // max once per 60s
 
             // Tracks how many coins were collected in the current run.
             var _runStartCoins = 0;
@@ -132,15 +130,13 @@
                     window._runEarnedCoins = Math.max(0, coinsNow - _runStartCoins);
                 } catch(e) { window._runEarnedCoins = 0; }
 
-                // Show interstitial on death (with cooldown so it's not every single death)
-                var now = Date.now();
-                if (now - _lastInterstitialTime >= INTERSTITIAL_COOLDOWN_MS) {
-                    if (window.AndroidBridge && typeof window.AndroidBridge.showInterstitialAd === 'function') {
-                        _lastInterstitialTime = now;
-                        setTimeout(function() {
-                            window.AndroidBridge.showInterstitialAd();
-                        }, 600); // slight delay so game-over screen appears first
-                    }
+                // Show a direct Yandex interstitial on every death.
+                // The Android loader itself prevents duplicate requests and only
+                // displays a loaded ad; if one is not ready, the next one remains cached.
+                if (window.AndroidBridge && typeof window.AndroidBridge.showInterstitialAd === 'function') {
+                    setTimeout(function() {
+                        window.AndroidBridge.showInterstitialAd();
+                    }, 600); // slight delay so game-over screen appears first
                 }
 
                 // Only show Watch-Ad button if the player earned at least 1 coin this run.

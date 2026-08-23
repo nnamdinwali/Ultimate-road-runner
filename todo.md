@@ -18,6 +18,6 @@
 - [x] Add bounded retry/backoff so failed ad requests do not loop or cause duplicate loads
 - [x] Run Android compile/tests and inspect the final diff before syncing changes to GitHub
 
-- [ ] Remove the 60-second interstitial cooldown from the game WebView trigger
-- [ ] Verify and repair explicit native and feed ad bridge calls from the packaged web game
-- [ ] Build and push the cooldown and native/feed trigger fixes, then verify GitHub Actions
+- [x] Remove the 60-second interstitial cooldown from the game WebView trigger
+- [x] Verify and repair explicit native and feed ad bridge calls from the packaged web game
+- [x] Build and push the cooldown and native/feed trigger fixes, then verify GitHub Actions

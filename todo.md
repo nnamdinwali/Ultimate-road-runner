@@ -11,3 +11,9 @@
 - [ ] Add an app-owned ✕ close control to the Native and Feed ad overlay
 - [ ] Show the ad overlay from the game menu and allow immediate return to the game
 - [ ] Validate close behavior and Android CI build
+
+- [x] Remove the Yandex Unity Ads mediation dependency and update stale Appodeal/Yandex documentation
+- [x] Refactor interstitial, rewarded, and app-open ads to use one persistent loader with one current ad and one controlled preload after consumption
+- [x] Repair native and feed ad loading/display lifecycle, including safe reloads after use and visibility state handling
+- [x] Add bounded retry/backoff so failed ad requests do not loop or cause duplicate loads
+- [ ] Run Android compile/tests and inspect the final diff before syncing changes to GitHub

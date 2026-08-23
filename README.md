@@ -1,95 +1,67 @@
 # Ultimate Road Runner — Android APK Builder
 
-This repo wraps your GDevelop web game into an Android APK with **Appodeal** banner + interstitial ads.
+This repository wraps the GDevelop web game into an Android APK using the **direct Yandex Mobile Ads Android SDK**. No Appodeal, Unity Ads adapter, or other mediation layer is included.
 
----
+The Android shell supports a sticky banner, interstitial, rewarded, app-open, native, and feed placement. Full-screen formats use a single persistent Yandex loader per format. One loaded ad is held for display, and the next request starts immediately after the displayed ad is consumed or fails to show. Load failures use bounded backoff rather than an uncontrolled request loop.
 
-## 📁 Project Structure
+## Project Structure
 
-```
-ultimate-road-runner-android/
+```text
+ultimate-road-runner/
 ├── app/
 │   └── src/main/
-│       ├── assets/game/         ← PUT YOUR GDEVELOP GAME FILES HERE
-│       ├── java/com/ultimateroadrunner/game/
+│       ├── assets/game/         ← GDevelop HTML5 export
+│       ├── java/com/roadrunner/game/
 │       │   ├── MainActivity.java
-│       │   └── AppodealBridge.java
+│       │   └── AndroidBridge.java
 │       └── res/
-├── .github/workflows/build-apk.yml   ← GitHub Actions auto-build
+├── .github/workflows/build-apk.yml
 └── README.md
 ```
 
----
+## Add or Update the Game
 
-## 🎮 Step 1 — Add Your Game Files
+Export the game from GDevelop as **HTML5 / Web** and copy the complete export into `app/src/main/assets/game/`. The `index.html` file must be directly inside that directory, not nested in another folder.
 
-1. Export your game from GDevelop as **HTML5 / Web**
-2. Copy ALL the exported files into:
-   ```
-   app/src/main/assets/game/
-   ```
-   Make sure `index.html` is directly inside `game/` (not in a subfolder).
+The packaged game already calls the Android bridge for its ad placements. The interstitial is triggered from the game-over/death flow after a short delay and is limited to once per 60 seconds. Rewarded ads are requested by the game’s watch-ad action. The banner is shown only during active gameplay. Native ads are shown on the menu, while the feed placement is shown in the shop.
 
----
-
-## 📢 Step 2 — Add Ad Calls in Your Game (GDevelop)
-
-Add this JavaScript event in GDevelop to show an interstitial ad (e.g. between levels):
+For a manual interstitial call from GDevelop, use:
 
 ```javascript
-// Show interstitial ad between levels
-if (window.showInterstitialAd) {
-    window.showInterstitialAd();
+if (window.AndroidBridge && typeof window.AndroidBridge.showInterstitialAd === 'function') {
+    window.AndroidBridge.showInterstitialAd();
 }
 ```
 
-The banner ad shows **automatically** at the bottom of the screen — no code needed.
+## Yandex Mobile Ads Configuration
 
----
+The app uses the direct dependency:
 
-## 🔑 Step 3 — Set Up GitHub Secrets (for APK signing)
-
-Go to your GitHub repo → **Settings → Secrets and variables → Actions** and add:
-
-| Secret Name        | Value |
-|--------------------|-------|
-| `KEYSTORE_BASE64`  | Your keystore file encoded as base64 (see below) |
-| `KEYSTORE_PASSWORD`| Your keystore password |
-| `KEY_ALIAS`        | Your key alias |
-| `KEY_PASSWORD`     | Your key password |
-
-### How to encode your keystore to base64:
-```bash
-# On Mac/Linux:
-base64 -i your-keystore.jks | pbcopy
-
-# On Windows (PowerShell):
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("your-keystore.jks")) | clip
+```gradle
+implementation 'com.yandex.android:mobileads:8.3.0'
 ```
-Paste the result as the `KEYSTORE_BASE64` secret.
 
----
+The placement IDs are defined in `MainActivity.java`. Replace them with the production placement IDs from the Yandex Advertising Network account before release if the repository values are not the intended production placements.
 
-## 🏗️ Step 4 — Build the APK
+Yandex SDK calls run on the Android main thread. Interstitial, rewarded, and app-open objects are cleared after use, while their persistent loaders prepare the next ad. A failed request is retried with bounded backoff to avoid duplicate requests and repeated unsuccessful calls. `FeedAd` is preloaded once and manages its sequential feed internally.
 
-**Automatic:** Every push to `main` triggers a build.
+## Signing Secrets
 
-**Manual:** Go to GitHub → **Actions → Build APK → Run workflow**
+For GitHub Actions APK signing, add these secrets under **Settings → Secrets and variables → Actions**:
 
-Download your APK from the **Artifacts** section after the build completes.
+| Secret | Purpose |
+| --- | --- |
+| `KEYSTORE_BASE64` | Base64-encoded Android keystore |
+| `KEYSTORE_PASSWORD` | Keystore password |
+| `KEY_ALIAS` | Signing key alias |
+| `KEY_PASSWORD` | Signing key password |
 
----
+## Build
 
-## 📱 Appodeal Details
+Every push to `main` triggers the configured GitHub Actions build. A manual build can be started from **GitHub → Actions → Build APK → Run workflow**. Download the resulting APK from the workflow artifacts.
 
-- **App Key:** `d7441b7444df839562102f3e95a44793d98cd126509b5ce2`
-- **Bundle ID:** `com.ultimateroadrunner.game`
-- **Ads:** Banner (bottom) + Interstitial
+The project targets Android API 35, supports Android API 21 and later, and uses Android Gradle Plugin 8.9.1 with Gradle 8.11.1 to match the current Yandex Mobile Ads 8.3.0 integration guidance.
 
----
+## Notes
 
-## ⚠️ Notes
-
-- Game is forced to **landscape** orientation
-- Minimum Android version: **5.0 (API 21)**
-- Your old keystore/signature from Google Drive can be used directly for `KEYSTORE_BASE64`
+The game remains configured for its existing orientation and WebView behavior. Ad presentation remains controlled by the game’s existing placement logic; the Android-side changes only standardize direct Yandex loading, caching, lifecycle cleanup, and retry behavior.

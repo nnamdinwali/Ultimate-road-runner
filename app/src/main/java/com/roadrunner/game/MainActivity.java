@@ -14,6 +14,8 @@ import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -103,22 +105,42 @@ public class MainActivity extends AppCompatActivity {
     private FeedAdAdapter feedAdAdapter;
     private boolean nativeShouldBeVisible = false;
     private boolean nativeAdRendered = false;
+    private boolean nativeLoading = false;
+    private boolean nativeRetryScheduled = false;
+    private int     nativeRetryCount = 0;
     private boolean feedShouldBeVisible = false;
     private boolean feedAdLoaded = false;
+    private boolean feedPreloadRequested = false;
 
     private boolean bannerLoadStarted     = false;
+    private boolean bannerLoading         = false;
+    private boolean bannerRetryScheduled  = false;
+    private int     bannerRetryCount     = 0;
     private boolean bannerShouldBeVisible = false;
+
+    private static final long AD_RETRY_BASE_MS = 15_000L;
+    private static final long AD_RETRY_MAX_MS = 120_000L;
+    private final Handler adHandler = new Handler(Looper.getMainLooper());
 
     private InterstitialAdLoader interstitialLoader;
     private InterstitialAd       interstitialAd;
+    private boolean               interstitialLoading;
+    private boolean               interstitialRetryScheduled;
+    private int                   interstitialRetryCount;
 
     private RewardedAdLoader rewardedLoader;
     private RewardedAd       rewardedAd;
+    private boolean           rewardedLoading;
+    private boolean           rewardedRetryScheduled;
+    private int               rewardedRetryCount;
 
     private Runnable pendingRewardCallback;
 
     private AppOpenAdLoader appOpenAdLoader;
     private AppOpenAd       appOpenAd;
+    private boolean          appOpenLoading;
+    private boolean          appOpenRetryScheduled;
+    private int              appOpenRetryCount;
     private boolean         appOpenAdShowing   = false;
     private boolean         isFirstStart       = true;
     private boolean         appWasInBackground = false;
@@ -198,15 +220,20 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        adHandler.removeCallbacksAndMessages(null);
         unregisterNetworkCallback();
         if (noNetworkDialog != null && noNetworkDialog.isShowing()) noNetworkDialog.dismiss();
-        if (bannerAdView   != null) bannerAdView.destroy();
-        if (nativeAd       != null) nativeAd.setNativeAdEventListener(null);
-        if (feedAd         != null) feedAd.setLoadListener(null);
+        if (bannerAdView != null) bannerAdView.destroy();
+        if (nativeAd != null) nativeAd.setNativeAdEventListener(null);
+        if (nativeAdLoader != null) nativeAdLoader.setAdLoadListener(null);
+        if (feedAd != null) feedAd.setLoadListener(null);
+        if (interstitialLoader != null) interstitialLoader.setAdLoadListener(null);
+        if (rewardedLoader != null) rewardedLoader.setAdLoadListener(null);
+        if (appOpenAdLoader != null) appOpenAdLoader.setAdLoadListener(null);
         if (interstitialAd != null) interstitialAd.setAdEventListener(null);
-        if (rewardedAd     != null) rewardedAd.setAdEventListener(null);
-        if (appOpenAd      != null) appOpenAd.setAdEventListener(null);
-        if (webView        != null) webView.destroy();
+        if (rewardedAd != null) rewardedAd.setAdEventListener(null);
+        if (appOpenAd != null) appOpenAd.setAdEventListener(null);
+        if (webView != null) webView.destroy();
     }
 
     @Override
@@ -423,6 +450,10 @@ public class MainActivity extends AppCompatActivity {
         nativeAdLoadListener = new NativeAdLoadListener() {
             @Override
             public void onAdLoaded(@NonNull NativeAd ad) {
+                nativeLoading = false;
+                nativeRetryScheduled = false;
+                nativeRetryCount = 0;
+                if (nativeAd != null) nativeAd.setNativeAdEventListener(null);
                 nativeAd = ad;
                 nativeAdRendered = false;
                 Log.d(TAG, "Native ad loaded");
@@ -431,6 +462,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                nativeLoading = false;
                 nativeAd = null;
                 nativeAdRendered = false;
                 Log.w(TAG, "Native ad failed: " + error.getDescription());
@@ -438,16 +470,29 @@ public class MainActivity extends AppCompatActivity {
                     if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
                     setAdCloseVisible(false);
                 });
+                scheduleNativeRetry();
             }
         };
         loadNativeAd();
     }
 
     private void loadNativeAd() {
-        if (nativeAdLoader == null || nativeAdLoadListener == null) return;
+        if (nativeAdLoader == null || nativeAdLoadListener == null || nativeAd != null || nativeLoading) return;
+        nativeLoading = true;
         nativeAdLoader.loadAd(
                 new AdRequest.Builder(NATIVE_AD_UNIT_ID).build(),
                 nativeAdLoadListener);
+    }
+
+    private void scheduleNativeRetry() {
+        if (nativeRetryScheduled || nativeAd != null || nativeAdLoader == null) return;
+        nativeRetryScheduled = true;
+        long delay = Math.min(AD_RETRY_MAX_MS,
+                AD_RETRY_BASE_MS * (1L << Math.min(nativeRetryCount++, 3)));
+        adHandler.postDelayed(() -> {
+            nativeRetryScheduled = false;
+            loadNativeAd();
+        }, delay);
     }
 
     private void renderNativeAd(@NonNull NativeAd ad) {
@@ -555,7 +600,7 @@ public class MainActivity extends AppCompatActivity {
             if (nativeAdContainer != null) {
                 nativeAdContainer.setVisibility(nativeAdRendered ? View.VISIBLE : View.GONE);
                 setAdCloseVisible(nativeAdRendered);
-                if (nativeAd == null || !nativeAdRendered) loadNativeAd();
+                loadNativeAd();
             }
         });
     }
@@ -585,6 +630,7 @@ public class MainActivity extends AppCompatActivity {
         feedAd = new FeedAd.Builder(this, request, appearance).build();
         feedAd.setLoadListener(new FeedAdLoadListener() {
             @Override public void onAdLoaded() {
+                feedPreloadRequested = false;
                 feedAdLoaded = true;
                 Log.d(TAG, "Feed ad loaded");
                 runOnUiThread(() -> {
@@ -598,6 +644,7 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
             @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                feedPreloadRequested = false;
                 feedAdLoaded = false;
                 Log.w(TAG, "Feed ad failed: " + error.getDescription());
                 runOnUiThread(() -> {
@@ -616,6 +663,12 @@ public class MainActivity extends AppCompatActivity {
         feedRecyclerView.setAdapter(feedAdAdapter);
         feedContainer.setVisibility(View.GONE);
         feedRecyclerView.setVisibility(View.GONE);
+        preloadFeedAd();
+    }
+
+    private void preloadFeedAd() {
+        if (feedAd == null || feedPreloadRequested) return;
+        feedPreloadRequested = true;
         feedAd.preloadAd();
     }
 
@@ -623,6 +676,7 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             feedShouldBeVisible = true;
             if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
+            if (!feedAdLoaded) preloadFeedAd();
             if (feedContainer != null) feedContainer.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
             if (feedRecyclerView != null) feedRecyclerView.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
             setAdCloseVisible(feedAdLoaded);
@@ -655,6 +709,9 @@ public class MainActivity extends AppCompatActivity {
         bannerAdView.setBannerAdEventListener(new BannerAdEventListener() {
             @Override
             public void onAdLoaded() {
+                bannerLoading = false;
+                bannerRetryScheduled = false;
+                bannerRetryCount = 0;
                 Log.d(TAG, "Banner loaded");
                 if (bannerShouldBeVisible) {
                     runOnUiThread(() -> {
@@ -669,10 +726,12 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onAdFailedToLoad(@NonNull AdRequestError error) {
                 Log.w(TAG, "Banner failed: " + error.getDescription());
+                bannerLoading = false;
                 bannerLoadStarted = false;
                 runOnUiThread(() -> {
                     if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
                 });
+                scheduleBannerRetry();
             }
             @Override public void onAdClicked() {
                 Log.d(TAG, "Banner clicked");
@@ -682,11 +741,27 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Preload immediately so a missed WebView bridge callback cannot prevent
-        // the Yandex request and its configured mediation waterfall from starting.
+        // Preload immediately so the first gameplay request has a ready banner.
+        loadBannerAd();
+    }
+
+    private void loadBannerAd() {
+        if (bannerAdView == null || bannerLoading) return;
         bannerLoadStarted = true;
+        bannerLoading = true;
         bannerAdView.loadAd(new AdRequest.Builder(BANNER_AD_UNIT_ID).build());
-        Log.d(TAG, "Banner preload requested");
+        Log.d(TAG, "Direct Yandex banner preload requested");
+    }
+
+    private void scheduleBannerRetry() {
+        if (bannerRetryScheduled || bannerLoading || bannerAdView == null) return;
+        bannerRetryScheduled = true;
+        long delay = Math.min(AD_RETRY_MAX_MS,
+                AD_RETRY_BASE_MS * (1L << Math.min(bannerRetryCount++, 3)));
+        adHandler.postDelayed(() -> {
+            bannerRetryScheduled = false;
+            loadBannerAd();
+        }, delay);
     }
 
     // ── Banner show / hide ────────────────────────────────────────────────────
@@ -695,11 +770,7 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             if (bannerAdView == null) return;
             bannerShouldBeVisible = true;
-            if (!bannerLoadStarted) {
-                bannerLoadStarted = true;
-                bannerAdView.loadAd(new AdRequest.Builder(BANNER_AD_UNIT_ID).build());
-                Log.d(TAG, "Banner: first load requested (gameplay started)");
-            }
+            if (!bannerLoadStarted) loadBannerAd();
             bannerAdView.setVisibility(View.VISIBLE);
         });
     }
@@ -714,127 +785,208 @@ public class MainActivity extends AppCompatActivity {
     // ── Interstitial Ad ──────────────────────────────────────────────────────
 
     void loadInterstitialAd() {
-        interstitialLoader = new InterstitialAdLoader(this);
-        interstitialLoader.loadAd(
-                new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
-                new InterstitialAdLoadListener() {
-                    @Override
-                    public void onAdLoaded(@NonNull InterstitialAd ad) {
-                        interstitialAd = ad;
-                        Log.d(TAG, "Interstitial loaded");
-                    }
-                    @Override
-                    public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                        interstitialAd = null;
-                        Log.w(TAG, "Interstitial failed: " + error.getDescription());
-                    }
-                });
+        runOnUiThread(() -> {
+            if (interstitialAd != null || interstitialLoading) return;
+            if (interstitialLoader == null) {
+                interstitialLoader = new InterstitialAdLoader(this);
+            }
+            interstitialLoading = true;
+            interstitialLoader.loadAd(
+                    new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
+                    new InterstitialAdLoadListener() {
+                        @Override public void onAdLoaded(@NonNull InterstitialAd ad) {
+                            interstitialLoading = false;
+                            interstitialRetryScheduled = false;
+                            interstitialRetryCount = 0;
+                            interstitialAd = ad;
+                            Log.d(TAG, "Interstitial loaded and cached");
+                        }
+                        @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                            interstitialLoading = false;
+                            interstitialAd = null;
+                            Log.w(TAG, "Interstitial failed: " + error.getDescription());
+                            scheduleInterstitialRetry();
+                        }
+                    });
+        });
+    }
+
+    private void scheduleInterstitialRetry() {
+        if (interstitialRetryScheduled || interstitialAd != null || interstitialLoader == null) return;
+        interstitialRetryScheduled = true;
+        long delay = Math.min(AD_RETRY_MAX_MS,
+                AD_RETRY_BASE_MS * (1L << Math.min(interstitialRetryCount++, 3)));
+        adHandler.postDelayed(() -> {
+            interstitialRetryScheduled = false;
+            loadInterstitialAd();
+        }, delay);
     }
 
     void showInterstitialAd() {
         runOnUiThread(() -> {
-            if (interstitialAd != null) {
-                interstitialAd.setAdEventListener(new InterstitialAdEventListener() {
-                    @Override public void onAdShown()               { Log.d(TAG, "Interstitial shown"); }
-                    @Override public void onAdFailedToShow(@NonNull AdError e) { loadInterstitialAd(); }
-                    @Override public void onAdDismissed()           { interstitialAd = null; loadInterstitialAd(); }
-                    @Override public void onAdClicked()             { Log.d(TAG, "Interstitial clicked"); }
-                    @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "Interstitial impression: " + d); }
-                });
-                interstitialAd.show(MainActivity.this);
-            } else {
-                Log.d(TAG, "Interstitial not ready yet, preloading");
+            if (interstitialAd == null) {
+                Log.d(TAG, "Interstitial not ready; keeping the next request controlled");
                 loadInterstitialAd();
+                return;
             }
+            final InterstitialAd adToShow = interstitialAd;
+            interstitialAd = null;
+            adToShow.setAdEventListener(new InterstitialAdEventListener() {
+                @Override public void onAdShown() { Log.d(TAG, "Interstitial shown"); }
+                @Override public void onAdFailedToShow(@NonNull AdError e) {
+                    adToShow.setAdEventListener(null);
+                    Log.w(TAG, "Interstitial failed to show: " + e.getDescription());
+                    loadInterstitialAd();
+                }
+                @Override public void onAdDismissed() {
+                    adToShow.setAdEventListener(null);
+                    loadInterstitialAd();
+                }
+                @Override public void onAdClicked() { Log.d(TAG, "Interstitial clicked"); }
+                @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "Interstitial impression: " + d); }
+            });
+            loadInterstitialAd();
+            adToShow.show(MainActivity.this);
         });
     }
 
     // ── Rewarded Ad ──────────────────────────────────────────────────────────
 
     void loadRewardedAd() {
-        rewardedLoader = new RewardedAdLoader(this);
-        rewardedLoader.loadAd(
-                new AdRequest.Builder(REWARDED_AD_UNIT_ID).build(),
-                new RewardedAdLoadListener() {
-                    @Override
-                    public void onAdLoaded(@NonNull RewardedAd ad) {
-                        rewardedAd = ad;
-                        Log.d(TAG, "Rewarded ad loaded");
-                    }
-                    @Override
-                    public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                        rewardedAd = null;
-                        Log.w(TAG, "Rewarded failed: " + error.getDescription());
-                    }
-                });
+        runOnUiThread(() -> {
+            if (rewardedAd != null || rewardedLoading) return;
+            if (rewardedLoader == null) rewardedLoader = new RewardedAdLoader(this);
+            rewardedLoading = true;
+            rewardedLoader.loadAd(
+                    new AdRequest.Builder(REWARDED_AD_UNIT_ID).build(),
+                    new RewardedAdLoadListener() {
+                        @Override public void onAdLoaded(@NonNull RewardedAd ad) {
+                            rewardedLoading = false;
+                            rewardedRetryScheduled = false;
+                            rewardedRetryCount = 0;
+                            rewardedAd = ad;
+                            Log.d(TAG, "Rewarded ad loaded and cached");
+                        }
+                        @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                            rewardedLoading = false;
+                            rewardedAd = null;
+                            Log.w(TAG, "Rewarded failed: " + error.getDescription());
+                            scheduleRewardedRetry();
+                        }
+                    });
+        });
+    }
+
+    private void scheduleRewardedRetry() {
+        if (rewardedRetryScheduled || rewardedAd != null || rewardedLoader == null) return;
+        rewardedRetryScheduled = true;
+        long delay = Math.min(AD_RETRY_MAX_MS,
+                AD_RETRY_BASE_MS * (1L << Math.min(rewardedRetryCount++, 3)));
+        adHandler.postDelayed(() -> {
+            rewardedRetryScheduled = false;
+            loadRewardedAd();
+        }, delay);
     }
 
     void showRewardedAd(Runnable onRewarded) {
         pendingRewardCallback = onRewarded;
         runOnUiThread(() -> {
-            if (rewardedAd != null) {
-                rewardedAd.setAdEventListener(new RewardedAdEventListener() {
-                    @Override
-                    public void onRewarded(@NonNull Reward reward) {
-                        Log.d(TAG, "User earned reward: " + reward.getAmount() + " " + reward.getType());
-                        if (pendingRewardCallback != null) {
-                            pendingRewardCallback.run();
-                            pendingRewardCallback = null;
-                        }
-                    }
-                    @Override public void onAdShown()     { Log.d(TAG, "Rewarded shown"); }
-                    @Override public void onAdDismissed() { rewardedAd = null; loadRewardedAd(); }
-                    @Override public void onAdFailedToShow(@NonNull AdError e) { loadRewardedAd(); }
-                    @Override public void onAdClicked()   { Log.d(TAG, "Rewarded clicked"); }
-                    @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "Rewarded impression: " + d); }
-                });
-                rewardedAd.show(MainActivity.this);
-            } else {
-                Log.d(TAG, "Rewarded ad not ready, preloading");
+            if (rewardedAd == null) {
+                Log.d(TAG, "Rewarded ad not ready; keeping the next request controlled");
                 loadRewardedAd();
+                return;
             }
+            final RewardedAd adToShow = rewardedAd;
+            rewardedAd = null;
+            adToShow.setAdEventListener(new RewardedAdEventListener() {
+                @Override public void onRewarded(@NonNull Reward reward) {
+                    Log.d(TAG, "User earned reward: " + reward.getAmount() + " " + reward.getType());
+                    if (pendingRewardCallback != null) {
+                        pendingRewardCallback.run();
+                        pendingRewardCallback = null;
+                    }
+                }
+                @Override public void onAdShown() { Log.d(TAG, "Rewarded shown"); }
+                @Override public void onAdDismissed() {
+                    adToShow.setAdEventListener(null);
+                    loadRewardedAd();
+                }
+                @Override public void onAdFailedToShow(@NonNull AdError e) {
+                    adToShow.setAdEventListener(null);
+                    Log.w(TAG, "Rewarded failed to show: " + e.getDescription());
+                    loadRewardedAd();
+                }
+                @Override public void onAdClicked() { Log.d(TAG, "Rewarded clicked"); }
+                @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "Rewarded impression: " + d); }
+            });
+            loadRewardedAd();
+            adToShow.show(MainActivity.this);
         });
     }
 
     // ── App Open Ad ──────────────────────────────────────────────────────────
 
     void loadAppOpenAd() {
-        appOpenAdLoader = new AppOpenAdLoader(this);
-        appOpenAdLoader.loadAd(
-                new AdRequest.Builder(APP_OPEN_AD_UNIT_ID).build(),
-                new AppOpenAdLoadListener() {
-                    @Override
-                    public void onAdLoaded(@NonNull AppOpenAd ad) {
-                        appOpenAd = ad;
-                        Log.d(TAG, "App Open ad loaded");
-                    }
-                    @Override
-                    public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                        appOpenAd = null;
-                        Log.w(TAG, "App Open ad failed: " + error.getDescription());
-                    }
-                });
+        runOnUiThread(() -> {
+            if (appOpenAd != null || appOpenLoading) return;
+            if (appOpenAdLoader == null) appOpenAdLoader = new AppOpenAdLoader(this);
+            appOpenLoading = true;
+            appOpenAdLoader.loadAd(
+                    new AdRequest.Builder(APP_OPEN_AD_UNIT_ID).build(),
+                    new AppOpenAdLoadListener() {
+                        @Override public void onAdLoaded(@NonNull AppOpenAd ad) {
+                            appOpenLoading = false;
+                            appOpenRetryScheduled = false;
+                            appOpenRetryCount = 0;
+                            appOpenAd = ad;
+                            Log.d(TAG, "App Open ad loaded and cached");
+                        }
+                        @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
+                            appOpenLoading = false;
+                            appOpenAd = null;
+                            Log.w(TAG, "App Open ad failed: " + error.getDescription());
+                            scheduleAppOpenRetry();
+                        }
+                    });
+        });
+    }
+
+    private void scheduleAppOpenRetry() {
+        if (appOpenRetryScheduled || appOpenAd != null || appOpenAdLoader == null) return;
+        appOpenRetryScheduled = true;
+        long delay = Math.min(AD_RETRY_MAX_MS,
+                AD_RETRY_BASE_MS * (1L << Math.min(appOpenRetryCount++, 3)));
+        adHandler.postDelayed(() -> {
+            appOpenRetryScheduled = false;
+            loadAppOpenAd();
+        }, delay);
     }
 
     void showAppOpenAd() {
-        if (appOpenAd == null || appOpenAdShowing) return;
-        appOpenAdShowing = true;
-        appOpenAd.setAdEventListener(new AppOpenAdEventListener() {
-            @Override public void onAdShown()       { Log.d(TAG, "App Open shown"); }
-            @Override public void onAdFailedToShow(@NonNull AdError e) {
-                appOpenAdShowing = false;
-                appOpenAd = null;
-                loadAppOpenAd();
-            }
-            @Override public void onAdDismissed() {
-                appOpenAdShowing = false;
-                appOpenAd = null;
-                loadAppOpenAd();
-            }
-            @Override public void onAdClicked()                       { Log.d(TAG, "App Open clicked"); }
-            @Override public void onAdImpression(ImpressionData d)    { Log.i(TAG, "App Open impression: " + d); }
+        runOnUiThread(() -> {
+            if (appOpenAd == null || appOpenAdShowing) return;
+            final AppOpenAd adToShow = appOpenAd;
+            appOpenAd = null;
+            appOpenAdShowing = true;
+            adToShow.setAdEventListener(new AppOpenAdEventListener() {
+                @Override public void onAdShown() { Log.d(TAG, "App Open shown"); }
+                @Override public void onAdFailedToShow(@NonNull AdError e) {
+                    appOpenAdShowing = false;
+                    adToShow.setAdEventListener(null);
+                    Log.w(TAG, "App Open failed to show: " + e.getDescription());
+                    loadAppOpenAd();
+                }
+                @Override public void onAdDismissed() {
+                    appOpenAdShowing = false;
+                    adToShow.setAdEventListener(null);
+                    loadAppOpenAd();
+                }
+                @Override public void onAdClicked() { Log.d(TAG, "App Open clicked"); }
+                @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "App Open impression: " + d); }
+            });
+            loadAppOpenAd();
+            adToShow.show(MainActivity.this);
         });
-        appOpenAd.show(MainActivity.this);
     }
 
     // ── Privacy Policy ───────────────────────────────────────────────────────

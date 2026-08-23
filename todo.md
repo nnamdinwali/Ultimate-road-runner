@@ -16,4 +16,4 @@
 - [x] Refactor interstitial, rewarded, and app-open ads to use one persistent loader with one current ad and one controlled preload after consumption
 - [x] Repair native and feed ad loading/display lifecycle, including safe reloads after use and visibility state handling
 - [x] Add bounded retry/backoff so failed ad requests do not loop or cause duplicate loads
-- [ ] Run Android compile/tests and inspect the final diff before syncing changes to GitHub
+- [x] Run Android compile/tests and inspect the final diff before syncing changes to GitHub

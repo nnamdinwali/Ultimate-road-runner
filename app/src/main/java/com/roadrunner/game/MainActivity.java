@@ -115,6 +115,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean feedShouldBeVisible = false;
     private boolean feedAdLoaded = false;
     private boolean feedPreloadRequested = false;
+    private boolean feedRetryScheduled = false;
+    private int     feedRetryCount = 0;
 
     private boolean bannerLoadStarted     = false;
     private boolean bannerLoading         = false;
@@ -668,6 +670,8 @@ public class MainActivity extends AppCompatActivity {
         feedAd.setLoadListener(new FeedAdLoadListener() {
             @Override public void onAdLoaded() {
                 feedPreloadRequested = false;
+                feedRetryScheduled = false;
+                feedRetryCount = 0;
                 feedAdLoaded = true;
                 Log.d(TAG, "Feed ad loaded");
                 runOnUiThread(() -> {
@@ -689,6 +693,7 @@ public class MainActivity extends AppCompatActivity {
                     if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
                     if (!nativeShouldBeVisible) setAdCloseVisible(false);
                 });
+                scheduleFeedRetry();
             }
         });
         feedAdAdapter = new FeedAdAdapter(feedAd);
@@ -703,8 +708,19 @@ public class MainActivity extends AppCompatActivity {
         preloadFeedAd();
     }
 
+    private void scheduleFeedRetry() {
+        if (feedRetryScheduled || feedAdLoaded || feedAd == null) return;
+        feedRetryScheduled = true;
+        long delay = Math.min(AD_RETRY_MAX_MS,
+                AD_RETRY_BASE_MS * (1L << Math.min(feedRetryCount++, 3)));
+        adHandler.postDelayed(() -> {
+            feedRetryScheduled = false;
+            preloadFeedAd();
+        }, delay);
+    }
+
     private void preloadFeedAd() {
-        if (feedAd == null || feedPreloadRequested) return;
+        if (feedAd == null || feedPreloadRequested || feedRetryScheduled) return;
         feedPreloadRequested = true;
         feedAd.preloadAd();
     }

@@ -25,3 +25,9 @@
 - [ ] Add a local four-hour inactivity reminder that schedules when the app leaves the foreground and cancels when the player returns
 - [ ] Add the Android 13 notification permission/channel and a tap action that reopens Ultimate Road Runner
 - [ ] Build and push the local reminder implementation, then verify the APK workflow
+
+- [ ] Inspect native and feed ad paths only and identify concrete display or lifecycle defects
+- [ ] Apply and validate only confirmed native/feed fixes; leave all other ad formats and gameplay unchanged
+
+- [ ] Add bounded retry recovery to the Yandex feed load failure path only
+- [ ] Validate and push the feed-only retry amendment

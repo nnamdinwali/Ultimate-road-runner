@@ -61,7 +61,6 @@ public class ReturnReminderReceiver extends BroadcastReceiver {
                 .setContentTitle("Road Runner is ready")
                 .setContentText("Come back and beat your best run.")
                 .setContentIntent(launchPendingIntent)
-                .setCategory(NotificationCompat.CATEGORY_GAME)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true);

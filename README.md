@@ -45,6 +45,12 @@ The placement IDs are defined in `MainActivity.java`. Replace them with the prod
 
 Yandex SDK calls run on the Android main thread. Interstitial, rewarded, and app-open objects are cleared after use, while their persistent loaders prepare the next ad. A failed request is retried with bounded backoff to avoid duplicate requests and repeated unsuccessful calls. `FeedAd` is preloaded once and manages its sequential feed internally.
 
+## Return Reminder
+
+The Android shell schedules a one-time local notification for four hours after the activity leaves the foreground. When the player returns, the pending reminder is cancelled and a new one is scheduled only when the player leaves again. Tapping the notification opens Ultimate Road Runner directly. Android 13 and later require the user to grant notification permission; if that permission is denied, Android will not display the reminder.
+
+This is a device-local reminder. It does not require FCM, HMS, a push token, or an internet connection at the time the reminder appears. Android may still defer reminders under device battery-saving policies.
+
 ## Signing Secrets
 
 For GitHub Actions APK signing, add these secrets under **Settings → Secrets and variables → Actions**:

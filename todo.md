@@ -21,3 +21,7 @@
 - [x] Remove the 60-second interstitial cooldown from the game WebView trigger
 - [x] Verify and repair explicit native and feed ad bridge calls from the packaged web game
 - [x] Build and push the cooldown and native/feed trigger fixes, then verify GitHub Actions
+
+- [ ] Add a local four-hour inactivity reminder that schedules when the app leaves the foreground and cancels when the player returns
+- [ ] Add the Android 13 notification permission/channel and a tap action that reopens Ultimate Road Runner
+- [ ] Build and push the local reminder implementation, then verify the APK workflow

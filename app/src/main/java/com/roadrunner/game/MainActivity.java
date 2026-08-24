@@ -2,6 +2,8 @@ package com.roadrunner.game;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -79,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "URR";
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
+    private static final int RETURN_REMINDER_REQUEST_CODE = 4104;
+    private static final long RETURN_REMINDER_DELAY_MS = 4L * 60L * 60L * 1000L;
     private static final String ROCKCITY_API_BASE = "https://gamezoneapi-cp623ub2.manus.space/api";
     private static final String PUSH_PREFS = "rockcity_push";
 
@@ -173,6 +177,7 @@ public class MainActivity extends AppCompatActivity {
                 (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
 
         registerNetworkCallback();
+        ReturnReminderReceiver.ensureNotificationChannel(this);
         requestNotificationPermissionIfNeeded();
 
         if (!isNetworkAvailable()) {
@@ -203,6 +208,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        cancelReturnReminder();
         if (isFirstStart) {
             isFirstStart = false;
         } else if (appWasInBackground) {
@@ -215,6 +221,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
         appWasInBackground = true;
+        scheduleReturnReminder();
     }
 
     @Override
@@ -316,6 +323,37 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Exit", (dialog, which) -> finishAffinity())
                 .show();
+    }
+
+    private PendingIntent getReturnReminderPendingIntent() {
+        Intent reminderIntent = new Intent(this, ReturnReminderReceiver.class)
+                .setAction(ReturnReminderReceiver.ACTION_RETURN_REMINDER);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        return PendingIntent.getBroadcast(this, RETURN_REMINDER_REQUEST_CODE, reminderIntent, flags);
+    }
+
+    private void scheduleReturnReminder() {
+        if (!appStarted) return;
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+        if (alarmManager == null) return;
+        PendingIntent pendingIntent = getReturnReminderPendingIntent();
+        alarmManager.cancel(pendingIntent);
+        long triggerAtMillis = System.currentTimeMillis() + RETURN_REMINDER_DELAY_MS;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
+        } else {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
+        }
+        Log.d(TAG, "Scheduled four-hour return reminder");
+    }
+
+    private void cancelReturnReminder() {
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+        if (alarmManager == null) return;
+        alarmManager.cancel(getReturnReminderPendingIntent());
     }
 
     /** Request Android 13+ notification permission without assuming a provider is configured. */

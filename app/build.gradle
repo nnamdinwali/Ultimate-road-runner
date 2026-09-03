@@ -4,10 +4,10 @@ plugins {
 
 android {
     compileSdk 35
-    namespace 'com.roadrunner.game'
+    namespace 'com.roadrunner.gamer'
 
     defaultConfig {
-        applicationId "com.roadrunner.game"
+        applicationId "com.roadrunner.gamer"
         minSdk 21
         targetSdk 35
         versionCode 18

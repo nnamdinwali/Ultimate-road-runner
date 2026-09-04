@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "283895347965",
+    "project_id": "road-runner-6e93c",
+    "storage_bucket": "road-runner-6e93c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:283895347965:android:85639be88360106f099c94",
+        "android_client_info": {
+          "package_name": "com.roadrunner.gamer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoQ_QIrEX2qPvq9g93btnsW-WiwkqlCA4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

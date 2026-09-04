@@ -82,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "URR";
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
     private static final int RETURN_REMINDER_REQUEST_CODE = 4104;
-    private static final long RETURN_REMINDER_DELAY_MS = 2L * 60L * 1000L; // TEST: 2 minutes // TEST: 2 minutes // TEST: 2 minutes (change back to 3 hours later)
+    private static final long RETURN_REMINDER_DELAY_MS = 2L * 60L * 1000L; // TEST: 2 minutes // TEST: 2 minutes // TEST: 2 minutes // TEST: 2 minutes (change back to 3 hours later)
     private static final String ROCKCITY_API_BASE = "https://gamezoneapi-cp623ub2.manus.space/api";
     private static final String PUSH_PREFS = "rockcity_push";
 
@@ -219,12 +219,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        // Schedule as soon as we leave the foreground (covers minimize + full close).
-        scheduleReturnReminder();
-    }
 
     @Override
     protected void onStop() {
@@ -356,34 +350,18 @@ public class MainActivity extends AppCompatActivity {
 
         long triggerAtMillis = System.currentTimeMillis() + RETURN_REMINDER_DELAY_MS;
 
-        // setAlarmClock survives app swipe-away / process death better than setExact.
+        // Play-safe local reminder: NOT setAlarmClock (that shows a clock icon and is for real alarms).
+        // Games use inexact/allow-while-idle alarms + a normal notification channel.
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                PendingIntent showIntent = PendingIntent.getActivity(
-                        this,
-                        RETURN_REMINDER_REQUEST_CODE + 1,
-                        new Intent(this, MainActivity.class)
-                                .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-                                ? (PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE)
-                                : PendingIntent.FLAG_UPDATE_CURRENT);
-                AlarmManager.AlarmClockInfo clockInfo =
-                        new AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent);
-                alarmManager.setAlarmClock(clockInfo, pendingIntent);
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
             } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
             }
             Log.i(TAG, "Return reminder scheduled in " + (RETURN_REMINDER_DELAY_MS / 1000) + "s");
         } catch (Exception e) {
-            try {
-                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent);
-                Log.i(TAG, "Return reminder scheduled (basic fallback)");
-            } catch (Exception e2) {
-                Log.e(TAG, "Failed to schedule return reminder", e2);
-            }
+            Log.e(TAG, "Failed to schedule return reminder", e);
         }
     }
 

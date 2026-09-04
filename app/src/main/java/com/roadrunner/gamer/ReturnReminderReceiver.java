@@ -15,8 +15,8 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
 /**
- * Shows a local notification so the player returns after inactivity.
- * Delay is controlled by MainActivity.RETURN_REMINDER_DELAY_MS.
+ * Local re-engagement notification (same pattern many casual games use).
+ * Not an alarm clock. Delay is set in MainActivity.
  */
 public class ReturnReminderReceiver extends BroadcastReceiver {
 
@@ -31,11 +31,22 @@ public class ReturnReminderReceiver extends BroadcastReceiver {
         NotificationManager manager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
+
+        NotificationChannel existing = manager.getNotificationChannel(CHANNEL_ID);
+        if (existing != null) {
+            // Recreate if an older low-importance channel was left behind
+            if (existing.getImportance() < NotificationManager.IMPORTANCE_DEFAULT) {
+                manager.deleteNotificationChannel(CHANNEL_ID);
+            } else {
+                return;
+            }
+        }
+
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
-                "Road Runner reminders",
-                NotificationManager.IMPORTANCE_HIGH);
-        channel.setDescription("Reminders to return to Road Runner after a break");
+                "Game reminders",
+                NotificationManager.IMPORTANCE_DEFAULT);
+        channel.setDescription("Optional reminders to return to Road Runner");
         channel.enableVibration(true);
         channel.setShowBadge(true);
         manager.createNotificationChannel(channel);
@@ -43,19 +54,17 @@ public class ReturnReminderReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.i(TAG, "Return reminder fired");
+        Log.i(TAG, "Return reminder received");
         if (intent == null) return;
         String action = intent.getAction();
-        if (action != null
-                && !ACTION_RETURN_REMINDER.equals(action)
-                && !"android.intent.action.BOOT_COMPLETED".equals(action)) {
+        if (action != null && !ACTION_RETURN_REMINDER.equals(action)) {
             return;
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
-                Log.w(TAG, "POST_NOTIFICATIONS not granted — cannot show reminder");
+                Log.w(TAG, "Notification permission not granted");
                 return;
             }
         }
@@ -63,32 +72,41 @@ public class ReturnReminderReceiver extends BroadcastReceiver {
         ensureNotificationChannel(context);
 
         Intent launchIntent = new Intent(context, MainActivity.class);
-        launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP
+        launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 
-        int piFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            piFlags |= PendingIntent.FLAG_IMMUTABLE;
+            flags |= PendingIntent.FLAG_IMMUTABLE;
         }
-        PendingIntent launchPendingIntent = PendingIntent.getActivity(
-                context, 4103, launchIntent, piFlags);
+        PendingIntent contentIntent = PendingIntent.getActivity(context, 4103, launchIntent, flags);
+
+        int smallIcon = R.drawable.ic_stat_reminder;
+        try {
+            // Ensure resource exists; fall back to launcher if needed
+            context.getResources().getDrawable(smallIcon, null);
+        } catch (Exception e) {
+            smallIcon = R.mipmap.ic_launcher;
+        }
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_reminder)
+                .setSmallIcon(smallIcon)
                 .setContentTitle("Road Runner")
-                .setContentText("Come back and beat your high score!")
-                .setContentIntent(launchPendingIntent)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentText("Ready for another run? Beat your high score.")
+                .setStyle(new NotificationCompat.BigTextStyle()
+                        .bigText("Ready for another run? Beat your high score."))
+                .setContentIntent(contentIntent)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
                 .setAutoCancel(true)
-                .setDefaults(NotificationCompat.DEFAULT_ALL);
+                .setOnlyAlertOnce(true);
 
         NotificationManager manager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager != null) {
             manager.notify(NOTIFICATION_ID, builder.build());
-            Log.i(TAG, "Notification posted");
+            Log.i(TAG, "Return reminder notification shown");
         }
     }
 }

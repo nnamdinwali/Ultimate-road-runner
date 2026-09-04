@@ -82,7 +82,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "URR";
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
     private static final int RETURN_REMINDER_REQUEST_CODE = 4104;
-    private static final long RETURN_REMINDER_DELAY_MS = 4L * 60L * 60L * 1000L;
+    private static final long RETURN_REMINDER_DELAY_MS = 2L * 60L * 1000L; // TEST: 2 minutes (change back to 3 hours later)
     private static final String ROCKCITY_API_BASE = "https://gamezoneapi-cp623ub2.manus.space/api";
     private static final String PUSH_PREFS = "rockcity_push";
 

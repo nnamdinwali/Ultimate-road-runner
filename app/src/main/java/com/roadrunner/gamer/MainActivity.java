@@ -36,6 +36,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.firebase.messaging.FirebaseMessaging;
 import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewClientCompat;
 
@@ -181,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
         registerNetworkCallback();
         ReturnReminderReceiver.ensureNotificationChannel(this);
         requestNotificationPermissionIfNeeded();
+        fetchAndRegisterFcmToken();
 
         if (!isNetworkAvailable()) {
             showNoNetworkDialog();
@@ -372,6 +374,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /** Request Android 13+ notification permission without assuming a provider is configured. */
+
+    /** Fetch FCM device token and store/register it (for real push like energy-full games). */
+    private void fetchAndRegisterFcmToken() {
+        try {
+            FirebaseMessaging.getInstance().getToken()
+                    .addOnSuccessListener(token -> {
+                        if (token == null || token.trim().isEmpty()) return;
+                        Log.i(TAG, "FCM token ready");
+                        registerPushToken("fcm", token);
+                    })
+                    .addOnFailureListener(e -> Log.w(TAG, "FCM token fetch failed", e));
+        } catch (Exception e) {
+            Log.w(TAG, "FCM not available yet", e);
+        }
+    }
+
     private void requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {

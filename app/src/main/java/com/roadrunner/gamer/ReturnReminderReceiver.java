@@ -13,7 +13,7 @@ import android.os.Build;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
-/** Posts a local reminder when the player has been away from the game for four hours. */
+/** Posts a local reminder when the player has been away from the game (delay set in MainActivity). */
 public class ReturnReminderReceiver extends BroadcastReceiver {
 
     public static final String ACTION_RETURN_REMINDER =

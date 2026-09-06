@@ -11,8 +11,8 @@ android {
         applicationId "com.roadrunner.gamer"
         minSdk 21
         targetSdk 36
-        versionCode 19
-        versionName "3.2"
+        versionCode 20
+        versionName "3.2.1"
     }
 
     signingConfigs {

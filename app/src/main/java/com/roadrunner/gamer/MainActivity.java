@@ -809,6 +809,11 @@ public class MainActivity extends AppCompatActivity {
             bannerShouldBeVisible = true;
             if (!bannerLoadStarted) loadBannerAd();
             bannerAdView.setVisibility(View.VISIBLE);
+            // Hide feed while gameplay is active (banner visible)
+            feedShouldBeVisible = false;
+            if (feedContainer != null) feedContainer.setVisibility(View.GONE);
+            if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
+            setAdCloseVisible(false);
         });
     }
 
@@ -816,6 +821,12 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             bannerShouldBeVisible = false;
             if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
+            // Show feed on shop / leaderboard / menu / game-over (when banner is hidden)
+            feedShouldBeVisible = true;
+            if (!feedAdLoaded) preloadFeedAd();
+            if (feedContainer != null) feedContainer.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
+            if (feedRecyclerView != null) feedRecyclerView.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
+            setAdCloseVisible(feedAdLoaded);
         });
     }
 

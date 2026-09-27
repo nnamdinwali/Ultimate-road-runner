@@ -90,12 +90,12 @@ public class MainActivity extends AppCompatActivity {
     private static final String PRIVACY_POLICY_URL =
             "https://nnamdinwali.github.io/ultimate-road-runner-privacy/";
 
-    private static final String BANNER_AD_UNIT_ID       = "R-M-19594035-2";
-    private static final String INTERSTITIAL_AD_UNIT_ID = "R-M-19594035-1";
-    private static final String REWARDED_AD_UNIT_ID     = "R-M-19594035-4";
-    private static final String APP_OPEN_AD_UNIT_ID     = "R-M-19594035-3";
-    private static final String NATIVE_AD_UNIT_ID       = "R-M-19594035-8";
-    private static final String FEED_AD_UNIT_ID         = "R-M-19594035-9";
+    private static final String BANNER_AD_UNIT_ID       = "R-M-20124431-2";
+    private static final String INTERSTITIAL_AD_UNIT_ID = "R-M-20124431-1";
+    private static final String REWARDED_AD_UNIT_ID     = "R-M-20124431-3";
+    private static final String APP_OPEN_AD_UNIT_ID     = "R-M-20124431-4";
+    private static final String NATIVE_AD_UNIT_ID       = "R-M-19594035-8";  // no new Native unit provided
+    private static final String FEED_AD_UNIT_ID         = "R-M-20124431-5";
 
     WebView webView;
     private BannerAdView bannerAdView;

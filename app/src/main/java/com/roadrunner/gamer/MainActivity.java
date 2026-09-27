@@ -94,7 +94,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String INTERSTITIAL_AD_UNIT_ID = "R-M-20124431-1";
     private static final String REWARDED_AD_UNIT_ID     = "R-M-20124431-3";
     private static final String APP_OPEN_AD_UNIT_ID     = "R-M-20124431-4";
-    private static final String NATIVE_AD_UNIT_ID       = "R-M-19594035-8";  // no new Native unit provided
     private static final String FEED_AD_UNIT_ID         = "R-M-20124431-5";
 
     WebView webView;
@@ -200,7 +199,7 @@ public class MainActivity extends AppCompatActivity {
             loadInterstitialAd();
             loadRewardedAd();
             loadAppOpenAd();
-            initNativeAd();
+            // initNativeAd();  // Native ad removed — no unit for new app
             initFeedAd();
         });
 
@@ -510,45 +509,11 @@ public class MainActivity extends AppCompatActivity {
     // ── Native Ad ───────────────────────────────────────────────────────────
 
     private void initNativeAd() {
-        nativeAdContainer = findViewById(R.id.nativeAdContainer);
-        if (nativeAdContainer == null) return;
-
-        nativeAdLoader = new NativeAdLoader(this);
-        nativeAdLoadListener = new NativeAdLoadListener() {
-            @Override
-            public void onAdLoaded(@NonNull NativeAd ad) {
-                nativeLoading = false;
-                nativeRetryScheduled = false;
-                nativeRetryCount = 0;
-                if (nativeAd != null) nativeAd.setNativeAdEventListener(null);
-                nativeAd = ad;
-                nativeAdRendered = false;
-                Log.d(TAG, "Native ad loaded");
-                renderNativeAd(ad);
-            }
-
-            @Override
-            public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                nativeLoading = false;
-                nativeAd = null;
-                nativeAdRendered = false;
-                Log.w(TAG, "Native ad failed: " + error.getDescription());
-                runOnUiThread(() -> {
-                    if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
-                    setAdCloseVisible(false);
-                });
-                scheduleNativeRetry();
-            }
-        };
-        loadNativeAd();
+        // Native ad removed — no unit for new Play Store app
     }
 
     private void loadNativeAd() {
-        if (nativeAdLoader == null || nativeAdLoadListener == null || nativeAd != null || nativeLoading) return;
-        nativeLoading = true;
-        nativeAdLoader.loadAd(
-                new AdRequest.Builder(NATIVE_AD_UNIT_ID).build(),
-                nativeAdLoadListener);
+        // Native ad removed
     }
 
     private void scheduleNativeRetry() {
@@ -664,23 +629,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void showNativeAd() {
-        runOnUiThread(() -> {
-            nativeShouldBeVisible = true;
-            if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
-            if (nativeAdContainer != null) {
-                nativeAdContainer.setVisibility(nativeAdRendered ? View.VISIBLE : View.GONE);
-                setAdCloseVisible(nativeAdRendered);
-                loadNativeAd();
-            }
-        });
+        // Native ad removed
     }
 
     void hideNativeAd() {
-        runOnUiThread(() -> {
-            nativeShouldBeVisible = false;
-            if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
-            if (!feedShouldBeVisible) setAdCloseVisible(false);
-        });
+        // Native ad removed
     }
 
     // ── Feed Ad ──────────────────────────────────────────────────────────────

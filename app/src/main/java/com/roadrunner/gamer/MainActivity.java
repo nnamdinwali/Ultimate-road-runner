@@ -83,6 +83,10 @@ public class MainActivity extends AppCompatActivity {
     private boolean nativeAdLoaded = false;
     private boolean pendingInterstitial = false;
     private boolean pendingRewarded = false;
+    private boolean interstitialRetryScheduled = false;
+    private boolean rewardedRetryScheduled = false;
+    private int interstitialRetryCount = 0;
+    private int rewardedRetryCount = 0;
     private boolean rewardEarned = false;
     private Runnable pendingRewardCallback;
     private boolean appWasInBackground = false;
@@ -460,6 +464,8 @@ public class MainActivity extends AppCompatActivity {
                         Appodeal.cache(MainActivity.this, Appodeal.BANNER);
                         Appodeal.cache(MainActivity.this, Appodeal.NATIVE);
                         showBanner();
+                        retryPendingInterstitial();
+                        retryPendingRewarded();
                     }
                 });
     }
@@ -484,13 +490,19 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onInterstitialLoaded(boolean isPrecache) {
                 Log.i(TAG, "Interstitial loaded");
                 if (pendingInterstitial) {
-                    pendingInterstitial = false;
-                    showInterstitialAd();
+                    retryPendingInterstitial();
                 }
             }
-            @Override public void onInterstitialFailedToLoad() { pendingInterstitial = false; }
+            @Override public void onInterstitialFailedToLoad() {
+                Log.w(TAG, "Interstitial failed to load; keeping request queued");
+                scheduleInterstitialRetry();
+            }
             @Override public void onInterstitialShown() { Log.i(TAG, "Interstitial shown"); }
-            @Override public void onInterstitialShowFailed() { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); }
+            @Override public void onInterstitialShowFailed() {
+                pendingInterstitial = true;
+                Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL);
+                scheduleInterstitialRetry();
+            }
             @Override public void onInterstitialClicked() { Log.i(TAG, "Interstitial clicked"); }
             @Override public void onInterstitialClosed() { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); }
             @Override public void onInterstitialExpired() { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); }
@@ -499,17 +511,17 @@ public class MainActivity extends AppCompatActivity {
         Appodeal.setRewardedVideoCallbacks(new RewardedVideoCallbacks() {
             @Override public void onRewardedVideoLoaded(boolean isPrecache) {
                 Log.i(TAG, "Rewarded video loaded");
-                if (pendingRewarded) showRewardedAdInternal();
+                if (pendingRewarded) retryPendingRewarded();
             }
             @Override public void onRewardedVideoFailedToLoad() {
-                pendingRewarded = false;
-                fireJsEvent("reward:cancelled");
+                Log.w(TAG, "Rewarded video failed to load; keeping request queued");
+                scheduleRewardedRetry();
             }
             @Override public void onRewardedVideoShown() { Log.i(TAG, "Rewarded video shown"); }
             @Override public void onRewardedVideoShowFailed() {
-                pendingRewarded = false;
-                fireJsEvent("reward:cancelled");
+                pendingRewarded = true;
                 Appodeal.cache(MainActivity.this, Appodeal.REWARDED_VIDEO);
+                scheduleRewardedRetry();
             }
             @Override public void onRewardedVideoClicked() { Log.i(TAG, "Rewarded clicked"); }
             @Override public void onRewardedVideoFinished(double amount, String name) {
@@ -570,7 +582,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showNativeAdInternal() {
         runOnUiThread(() -> {
-            if (!nativeAdRequested || nativeAdView == null || !Appodeal.isLoaded(Appodeal.NATIVE)) return;
+            if (!nativeAdRequested || nativeAdView == null) return;
             List<NativeAd> ads = Appodeal.getNativeAds(1);
             if (ads == null || ads.isEmpty()) {
                 Appodeal.cache(this, Appodeal.NATIVE);
@@ -586,8 +598,8 @@ public class MainActivity extends AppCompatActivity {
 
     void showNativeAd() {
         nativeAdRequested = true;
-        if (nativeAdLoaded) showNativeAdInternal();
-        else Appodeal.cache(this, Appodeal.NATIVE);
+        showNativeAdInternal();
+        Appodeal.cache(this, Appodeal.NATIVE);
     }
 
     void hideNativeAd() {
@@ -606,30 +618,17 @@ public class MainActivity extends AppCompatActivity {
 
     void showInterstitialAd() {
         runOnUiThread(() -> {
-            if (!adsInitialized) { pendingInterstitial = true; return; }
-            if (Appodeal.isLoaded(Appodeal.INTERSTITIAL)) {
-                pendingInterstitial = !Appodeal.show(this, Appodeal.INTERSTITIAL);
-                if (pendingInterstitial) Appodeal.cache(this, Appodeal.INTERSTITIAL);
-            } else {
-                pendingInterstitial = true;
-                Appodeal.cache(this, Appodeal.INTERSTITIAL);
-            }
+            pendingInterstitial = true;
+            interstitialRetryCount = 0;
+            retryPendingInterstitial();
         });
     }
 
     private void showRewardedAdInternal() {
         runOnUiThread(() -> {
-            if (!adsInitialized) { pendingRewarded = true; return; }
-            if (Appodeal.isLoaded(Appodeal.REWARDED_VIDEO)) {
-                pendingRewarded = false;
-                rewardEarned = false;
-                if (!Appodeal.show(this, Appodeal.REWARDED_VIDEO)) {
-                    fireJsEvent("reward:cancelled");
-                }
-            } else {
-                pendingRewarded = true;
-                Appodeal.cache(this, Appodeal.REWARDED_VIDEO);
-            }
+            pendingRewarded = true;
+            rewardedRetryCount = 0;
+            retryPendingRewarded();
         });
     }
 
@@ -642,6 +641,54 @@ public class MainActivity extends AppCompatActivity {
     void loadInterstitialAd() { Appodeal.cache(this, Appodeal.INTERSTITIAL); }
     void loadRewardedAd() { Appodeal.cache(this, Appodeal.REWARDED_VIDEO); }
     void showAppOpenAd() { /* Appodeal migration keeps the existing lifecycle hook harmless. */ }
+
+    private void retryPendingInterstitial() {
+        if (!adsInitialized || !pendingInterstitial) return;
+        if (Appodeal.isLoaded(Appodeal.INTERSTITIAL)) {
+            pendingInterstitial = !Appodeal.show(this, Appodeal.INTERSTITIAL);
+            if (!pendingInterstitial) interstitialRetryCount = 0;
+            else scheduleInterstitialRetry();
+            return;
+        }
+        Appodeal.cache(this, Appodeal.INTERSTITIAL);
+        scheduleInterstitialRetry();
+    }
+
+    private void scheduleInterstitialRetry() {
+        if (interstitialRetryScheduled || !pendingInterstitial || !adsInitialized) return;
+        interstitialRetryScheduled = true;
+        long delay = Math.min(8000L, 1000L * (1L << Math.min(interstitialRetryCount++, 3)));
+        adHandler.postDelayed(() -> {
+            interstitialRetryScheduled = false;
+            retryPendingInterstitial();
+        }, delay);
+    }
+
+    private void retryPendingRewarded() {
+        if (!adsInitialized || !pendingRewarded) return;
+        if (Appodeal.isLoaded(Appodeal.REWARDED_VIDEO)) {
+            pendingRewarded = false;
+            rewardedRetryCount = 0;
+            rewardEarned = false;
+            if (!Appodeal.show(this, Appodeal.REWARDED_VIDEO)) {
+                pendingRewarded = true;
+                scheduleRewardedRetry();
+            }
+            return;
+        }
+        Appodeal.cache(this, Appodeal.REWARDED_VIDEO);
+        scheduleRewardedRetry();
+    }
+
+    private void scheduleRewardedRetry() {
+        if (rewardedRetryScheduled || !pendingRewarded || !adsInitialized) return;
+        rewardedRetryScheduled = true;
+        long delay = Math.min(8000L, 1000L * (1L << Math.min(rewardedRetryCount++, 3)));
+        adHandler.postDelayed(() -> {
+            rewardedRetryScheduled = false;
+            retryPendingRewarded();
+        }, delay);
+    }
 
     private void fireJsEvent(String event) {
         adHandler.post(() -> {

@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId "com.roadrunner.gamer"
-        minSdk 21
+        minSdk 24
         targetSdk 36
         versionCode 24
         versionName "3.3.0"

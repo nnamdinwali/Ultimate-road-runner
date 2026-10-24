@@ -40,37 +40,18 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewClientCompat;
 
-import com.yandex.mobile.ads.banner.BannerAdEventListener;
-import com.yandex.mobile.ads.banner.BannerAdSize;
-import com.yandex.mobile.ads.banner.BannerAdView;
-import com.yandex.mobile.ads.common.AdRequest;
-import com.yandex.mobile.ads.common.AdError;
-import com.yandex.mobile.ads.common.AdRequestError;
-import com.yandex.mobile.ads.common.ImpressionData;
-import com.yandex.mobile.ads.common.YandexAds;
-import com.yandex.mobile.ads.interstitial.InterstitialAd;
-import com.yandex.mobile.ads.interstitial.InterstitialAdEventListener;
-import com.yandex.mobile.ads.interstitial.InterstitialAdLoadListener;
-import com.yandex.mobile.ads.interstitial.InterstitialAdLoader;
-import com.yandex.mobile.ads.appopenad.AppOpenAd;
-import com.yandex.mobile.ads.appopenad.AppOpenAdEventListener;
-import com.yandex.mobile.ads.appopenad.AppOpenAdLoadListener;
-import com.yandex.mobile.ads.appopenad.AppOpenAdLoader;
-import com.yandex.mobile.ads.rewarded.Reward;
-import com.yandex.mobile.ads.rewarded.RewardedAd;
-import com.yandex.mobile.ads.rewarded.RewardedAdEventListener;
-import com.yandex.mobile.ads.rewarded.RewardedAdLoadListener;
-import com.yandex.mobile.ads.rewarded.RewardedAdLoader;
-import com.yandex.mobile.ads.nativeads.NativeAd;
-import com.yandex.mobile.ads.nativeads.NativeAdLoader;
-import com.yandex.mobile.ads.nativeads.NativeAdLoadListener;
-import com.yandex.mobile.ads.nativeads.NativeAdView;
-import com.yandex.mobile.ads.nativeads.NativeAdViewBinder;
-import com.yandex.mobile.ads.feed.FeedAd;
-import com.yandex.mobile.ads.feed.FeedAdAdapter;
-import com.yandex.mobile.ads.feed.FeedAdAppearance;
-import com.yandex.mobile.ads.feed.FeedAdEventListener;
-import com.yandex.mobile.ads.feed.FeedAdLoadListener;
+import com.appodeal.ads.Appodeal;
+import com.appodeal.ads.BannerCallbacks;
+import com.appodeal.ads.BannerView;
+import com.appodeal.ads.InterstitialCallbacks;
+import com.appodeal.ads.RewardedVideoCallbacks;
+import com.appodeal.ads.NativeCallbacks;
+import com.appodeal.ads.NativeAd;
+import com.appodeal.ads.nativead.NativeAdViewNewsFeed;
+import com.appodeal.ads.initializing.ApdInitializationCallback;
+import com.appodeal.ads.initializing.ApdInitializationError;
+
+import java.util.List;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -90,66 +71,25 @@ public class MainActivity extends AppCompatActivity {
     private static final String PRIVACY_POLICY_URL =
             "https://nnamdinwali.github.io/ultimate-road-runner-privacy/";
 
-    private static final String BANNER_AD_UNIT_ID       = "R-M-20124431-2";
-    private static final String INTERSTITIAL_AD_UNIT_ID = "R-M-20124431-1";
-    private static final String REWARDED_AD_UNIT_ID     = "R-M-20124431-3";
-    private static final String APP_OPEN_AD_UNIT_ID     = "R-M-20124431-4";
-    private static final String FEED_AD_UNIT_ID         = "R-M-20124431-5";
+    private static final String APPODEAL_APP_KEY =
+            "af449661525c1513a9ee6bf7cc28f1fe77d5f2a25af88f18";
+    private static final int AD_TYPES =
+            Appodeal.BANNER | Appodeal.INTERSTITIAL | Appodeal.REWARDED_VIDEO | Appodeal.NATIVE;
 
     WebView webView;
-    private BannerAdView bannerAdView;
-    private FrameLayout nativeAdContainer;
-    private FrameLayout feedContainer;
-    private Button adCloseButton;
-    private RecyclerView feedRecyclerView;
-    private NativeAdLoader nativeAdLoader;
-    private NativeAdLoadListener nativeAdLoadListener;
-    private NativeAd nativeAd;
-    private FeedAd feedAd;
-    private FeedAdAdapter feedAdAdapter;
-    private boolean nativeShouldBeVisible = false;
-    private boolean nativeAdRendered = false;
-    private boolean nativeLoading = false;
-    private boolean nativeRetryScheduled = false;
-    private int     nativeRetryCount = 0;
-    private boolean feedShouldBeVisible = false;
-    private boolean feedAdLoaded = false;
-    private boolean feedPreloadRequested = false;
-    private boolean feedRetryScheduled = false;
-    private int     feedRetryCount = 0;
-
-    private boolean bannerLoadStarted     = false;
-    private boolean bannerLoading         = false;
-    private boolean bannerRetryScheduled  = false;
-    private int     bannerRetryCount     = 0;
-    private boolean bannerShouldBeVisible = false;
-
-    private static final long AD_RETRY_BASE_MS = 15_000L;
-    private static final long AD_RETRY_MAX_MS = 120_000L;
-    private final Handler adHandler = new Handler(Looper.getMainLooper());
-
-    private InterstitialAdLoader interstitialLoader;
-    private InterstitialAd       interstitialAd;
-    private boolean               interstitialLoading;
-    private boolean               interstitialRetryScheduled;
-    private int                   interstitialRetryCount;
-
-    private RewardedAdLoader rewardedLoader;
-    private RewardedAd       rewardedAd;
-    private boolean           rewardedLoading;
-    private boolean           rewardedRetryScheduled;
-    private int               rewardedRetryCount;
-
+    private BannerView bannerView;
+    private NativeAdViewNewsFeed nativeAdView;
+    private boolean adsInitialized = false;
+    private boolean bannerRequested = true;
+    private boolean nativeAdRequested = false;
+    private boolean nativeAdLoaded = false;
+    private boolean pendingInterstitial = false;
+    private boolean pendingRewarded = false;
+    private boolean rewardEarned = false;
     private Runnable pendingRewardCallback;
-
-    private AppOpenAdLoader appOpenAdLoader;
-    private AppOpenAd       appOpenAd;
-    private boolean          appOpenLoading;
-    private boolean          appOpenRetryScheduled;
-    private int              appOpenRetryCount;
-    private boolean         appOpenAdShowing   = false;
-    private boolean         isFirstStart       = true;
-    private boolean         appWasInBackground = false;
+    private boolean appWasInBackground = false;
+    private boolean isFirstStart = true;
+    private final Handler adHandler = new Handler(Looper.getMainLooper());
 
     // ── Network monitoring ────────────────────────────────────────────────────
     private ConnectivityManager         connectivityManager;
@@ -166,14 +106,6 @@ public class MainActivity extends AppCompatActivity {
         // actually control game volume (satisfies Huawei AppGallery requirement).
         setVolumeControlStream(AudioManager.STREAM_MUSIC);
         setContentView(R.layout.activity_main);
-
-        adCloseButton = findViewById(R.id.adCloseButton);
-        if (adCloseButton != null) {
-            adCloseButton.setOnClickListener(v -> {
-                hideNativeAd();
-                hideFeedAd();
-            });
-        }
 
         connectivityManager =
                 (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -193,19 +125,9 @@ public class MainActivity extends AppCompatActivity {
     /** Called once we confirm there is a network connection. */
     private void startApp() {
         appStarted = true;
-
-        YandexAds.initialize(this, () -> {
-            Log.d(TAG, "Yandex MobileAds SDK initialized");
-            loadInterstitialAd();
-            loadRewardedAd();
-            loadAppOpenAd();
-            // initNativeAd();  // Native ad removed — no unit for new app
-            initFeedAd();
-        });
-
         initWebView();
-        initBannerAd();
         initPrivacyPolicyButton();
+        initAppodeal();
     }
 
     @Override
@@ -234,12 +156,18 @@ public class MainActivity extends AppCompatActivity {
         adHandler.removeCallbacksAndMessages(null);
         unregisterNetworkCallback();
         if (noNetworkDialog != null && noNetworkDialog.isShowing()) noNetworkDialog.dismiss();
-        if (bannerAdView != null) bannerAdView.destroy();
-        if (nativeAd != null) nativeAd.setNativeAdEventListener(null);
-        if (feedAd != null) feedAd.setLoadListener(null);
-        if (interstitialAd != null) interstitialAd.setAdEventListener(null);
-        if (rewardedAd != null) rewardedAd.setAdEventListener(null);
-        if (appOpenAd != null) appOpenAd.setAdEventListener(null);
+        if (adsInitialized) {
+            Appodeal.setBannerCallbacks(null);
+            Appodeal.setInterstitialCallbacks(null);
+            Appodeal.setRewardedVideoCallbacks(null);
+            Appodeal.setNativeCallbacks(null);
+        }
+        if (nativeAdView != null) {
+            try { nativeAdView.unregisterView(); } catch (Exception ignored) {}
+            nativeAdView.destroy();
+            nativeAdView = null;
+        }
+        bannerView = null;
         if (webView != null) webView.destroy();
     }
 
@@ -506,534 +434,223 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("https://appassets.androidplatform.net/assets/game/index.html");
     }
 
-    // ── Native Ad ───────────────────────────────────────────────────────────
+    // ── Appodeal ads ─────────────────────────────────────────────────────────
 
-    private void initNativeAd() {
-        // Native ad removed — no unit for new Play Store app
-    }
+    private void initAppodeal() {
+        bannerView = findViewById(R.id.appodealBannerView);
+        nativeAdView = findViewById(R.id.appodealNativeAdView);
+        if (bannerView != null) bannerView.setVisibility(View.GONE);
+        if (nativeAdView != null) nativeAdView.setVisibility(View.GONE);
 
-    private void loadNativeAd() {
-        // Native ad removed
-    }
-
-    private void scheduleNativeRetry() {
-        if (nativeRetryScheduled || nativeAd != null || nativeAdLoader == null) return;
-        nativeRetryScheduled = true;
-        long delay = Math.min(AD_RETRY_MAX_MS,
-                AD_RETRY_BASE_MS * (1L << Math.min(nativeRetryCount++, 3)));
-        adHandler.postDelayed(() -> {
-            nativeRetryScheduled = false;
-            loadNativeAd();
-        }, delay);
-    }
-
-    private void renderNativeAd(@NonNull NativeAd ad) {
-        runOnUiThread(() -> {
-            if (nativeAdContainer == null) return;
-
-            NativeAdView adView = new NativeAdView(this);
-            LinearLayout content = new LinearLayout(this);
-            content.setOrientation(LinearLayout.VERTICAL);
-            content.setPadding(dp(8), dp(6), dp(8), dp(6));
-
-            TextView title = makeNativeText(16, true);
-            TextView body = makeNativeText(13, false);
-            TextView domain = makeNativeText(11, false);
-            TextView sponsored = makeNativeText(10, false);
-            TextView warning = makeNativeText(10, false);
-            TextView price = makeNativeText(12, true);
-            Button callToAction = new Button(this);
-            callToAction.setTextSize(12);
-            ImageView icon = new ImageView(this);
-            icon.setAdjustViewBounds(true);
-            com.yandex.mobile.ads.nativeads.MediaView mediaView =
-                    new com.yandex.mobile.ads.nativeads.MediaView(this);
-            mediaView.setMinimumHeight(dp(160));
-
-            content.addView(title, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            content.addView(domain, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            content.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
-            content.addView(mediaView, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(160)));
-            content.addView(body, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            content.addView(price, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            content.addView(callToAction, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            content.addView(sponsored, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            content.addView(warning, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            adView.addView(content, new FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-            NativeAdViewBinder binder = new NativeAdViewBinder.Builder(adView)
-                    .setTitleView(title)
-                    .setBodyView(body)
-                    .setDomainView(domain)
-                    .setMediaView(mediaView)
-                    .setPriceView(price)
-                    .setCallToActionView(callToAction)
-                    .setIconView(icon)
-                    .setSponsoredView(sponsored)
-                    .setWarningView(warning)
-                    .build();
-            ad.bindNativeAd(binder);
-            ad.setNativeAdEventListener(new NativeAdEventLogger());
-            nativeAdContainer.removeAllViews();
-            nativeAdContainer.addView(adView);
-            nativeAdContainer.setVisibility(View.GONE);
-
-            // Yandex can report a loaded object while the rendered assets are
-            // still empty. Do not expose the dark placeholder until at least
-            // one meaningful native asset has been bound.
-            adView.postDelayed(() -> {
-                boolean hasText = title.getText().length() > 0
-                        || body.getText().length() > 0
-                        || domain.getText().length() > 0
-                        || callToAction.getText().length() > 0;
-                // A successfully loaded Yandex NativeAd is displayable even when
-                // a particular creative has no text field. Do not hide a valid
-                // image/media creative solely because text arrived late or is empty.
-                nativeAdRendered = true;
-                if (nativeShouldBeVisible) {
-                    nativeAdContainer.setVisibility(View.VISIBLE);
-                    setAdCloseVisible(true);
-                } else {
-                    nativeAdContainer.setVisibility(View.GONE);
-                    setAdCloseVisible(false);
-                }
-                if (!hasText) Log.d(TAG, "Native ad loaded with media-only or late text assets");
-            }, 250);
-        });
-    }
-
-    private TextView makeNativeText(int sizeSp, boolean bold) {
-        TextView view = new TextView(this);
-        view.setTextSize(sizeSp);
-        view.setTextColor(0xFFFFFFFF);
-        if (bold) view.setTypeface(null, android.graphics.Typeface.BOLD);
-        return view;
-    }
-
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
-    private class NativeAdEventLogger implements com.yandex.mobile.ads.nativeads.NativeAdEventListener {
-        @Override public void onAdClicked() { Log.d(TAG, "Native ad clicked"); }
-        @Override public void onImpression(ImpressionData data) { Log.i(TAG, "Native impression: " + data); }
-    }
-
-    void showNativeAd() {
-        // Native ad removed
-    }
-
-    void hideNativeAd() {
-        // Native ad removed
-    }
-
-    // ── Feed Ad ──────────────────────────────────────────────────────────────
-
-    private void initFeedAd() {
-        feedRecyclerView = findViewById(R.id.feedRecyclerView);
-        feedContainer = findViewById(R.id.feedContainer);
-        if (feedRecyclerView == null || feedContainer == null) return;
-
-        int screenWidthDp = Math.round(getResources().getDisplayMetrics().widthPixels /
-                getResources().getDisplayMetrics().density);
-        int cardWidthDp = Math.max(280, screenWidthDp - 48);
-        FeedAdAppearance appearance = new FeedAdAppearance.Builder(cardWidthDp)
-                .setCardCornerRadius(16.0)
-                .build();
-        AdRequest request = new AdRequest.Builder(FEED_AD_UNIT_ID).build();
-        feedAd = new FeedAd.Builder(this, request, appearance).build();
-        feedAd.setLoadListener(new FeedAdLoadListener() {
-            @Override public void onAdLoaded() {
-                feedPreloadRequested = false;
-                feedRetryScheduled = false;
-                feedRetryCount = 0;
-                feedAdLoaded = true;
-                Log.d(TAG, "Feed ad loaded");
-                runOnUiThread(() -> {
-                    if (feedContainer != null) {
-                        feedContainer.setVisibility(feedShouldBeVisible ? View.VISIBLE : View.GONE);
-                    }
-                    setAdCloseVisible(feedShouldBeVisible);
-                    if (feedRecyclerView != null) {
-                        feedRecyclerView.setVisibility(feedShouldBeVisible ? View.VISIBLE : View.GONE);
+        Appodeal.setAutoCache(AD_TYPES, true);
+        Appodeal.setBannerViewId(R.id.appodealBannerView);
+        Appodeal.setSharedAdsInstanceAcrossActivities(true);
+        registerAppodealCallbacks();
+        Appodeal.initialize(this, APPODEAL_APP_KEY, AD_TYPES,
+                new ApdInitializationCallback() {
+                    @Override public void onInitializationFinished(List<ApdInitializationError> errors) {
+                        adsInitialized = true;
+                        if (errors != null && !errors.isEmpty()) {
+                            for (ApdInitializationError error : errors) {
+                                Log.w(TAG, "Appodeal initialization issue: " + error);
+                            }
+                        } else {
+                            Log.i(TAG, "Appodeal initialized successfully");
+                        }
+                        Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL);
+                        Appodeal.cache(MainActivity.this, Appodeal.REWARDED_VIDEO);
+                        Appodeal.cache(MainActivity.this, Appodeal.BANNER);
+                        Appodeal.cache(MainActivity.this, Appodeal.NATIVE);
+                        showBanner();
                     }
                 });
+    }
+
+    private void registerAppodealCallbacks() {
+        Appodeal.setBannerCallbacks(new BannerCallbacks() {
+            @Override public void onBannerLoaded(int height, boolean isPrecache) {
+                Log.i(TAG, "Banner loaded");
+                if (bannerRequested) showBanner();
             }
-            @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                feedPreloadRequested = false;
-                feedAdLoaded = false;
-                Log.w(TAG, "Feed ad failed: " + error.getDescription());
-                runOnUiThread(() -> {
-                    if (feedContainer != null) feedContainer.setVisibility(View.GONE);
-                    if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
-                    if (!nativeShouldBeVisible) setAdCloseVisible(false);
-                });
-                scheduleFeedRetry();
+            @Override public void onBannerFailedToLoad() {
+                Log.w(TAG, "Banner failed to load; retrying cache");
+                adHandler.postDelayed(() -> Appodeal.cache(MainActivity.this, Appodeal.BANNER), 3000L);
             }
+            @Override public void onBannerShown() { Log.i(TAG, "Banner shown"); }
+            @Override public void onBannerShowFailed() { Log.w(TAG, "Banner show failed"); }
+            @Override public void onBannerClicked() { Log.i(TAG, "Banner clicked"); }
+            @Override public void onBannerExpired() { Appodeal.cache(MainActivity.this, Appodeal.BANNER); }
         });
-        feedAdAdapter = new FeedAdAdapter(feedAd);
-        feedAdAdapter.setEventListener(new FeedAdEventListener() {
-            @Override public void onAdClicked() { Log.d(TAG, "Feed ad clicked"); }
-            @Override public void onImpression(ImpressionData data) { Log.i(TAG, "Feed impression: " + data); }
-        });
-        feedRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        feedRecyclerView.setAdapter(feedAdAdapter);
-        feedContainer.setVisibility(View.GONE);
-        feedRecyclerView.setVisibility(View.GONE);
-        preloadFeedAd();
-    }
 
-    private void scheduleFeedRetry() {
-        if (feedRetryScheduled || feedAdLoaded || feedAd == null) return;
-        feedRetryScheduled = true;
-        long delay = Math.min(AD_RETRY_MAX_MS,
-                AD_RETRY_BASE_MS * (1L << Math.min(feedRetryCount++, 3)));
-        adHandler.postDelayed(() -> {
-            feedRetryScheduled = false;
-            preloadFeedAd();
-        }, delay);
-    }
-
-    private void preloadFeedAd() {
-        if (feedAd == null || feedPreloadRequested || feedRetryScheduled) return;
-        feedPreloadRequested = true;
-        feedAd.preloadAd();
-    }
-
-    void showFeedAd() {
-        runOnUiThread(() -> {
-            feedShouldBeVisible = true;
-            if (nativeAdContainer != null) nativeAdContainer.setVisibility(View.GONE);
-            if (!feedAdLoaded) preloadFeedAd();
-            if (feedContainer != null) feedContainer.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
-            if (feedRecyclerView != null) feedRecyclerView.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
-            setAdCloseVisible(feedAdLoaded);
-        });
-    }
-
-    private void setAdCloseVisible(boolean visible) {
-        if (adCloseButton != null) {
-            adCloseButton.setVisibility(visible ? View.VISIBLE : View.GONE);
-        }
-    }
-
-    void hideFeedAd() {
-        runOnUiThread(() -> {
-            feedShouldBeVisible = false;
-            if (feedContainer != null) feedContainer.setVisibility(View.GONE);
-            if (!nativeShouldBeVisible) setAdCloseVisible(false);
-            if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
-        });
-    }
-
-    // ── Banner Ad ────────────────────────────────────────────────────────────
-
-    private void initBannerAd() {
-        bannerAdView = findViewById(R.id.bannerAdView);
-
-        int widthPx = getResources().getDisplayMetrics().widthPixels;
-        bannerAdView.setAdSize(BannerAdSize.sticky(this, widthPx));
-
-        bannerAdView.setBannerAdEventListener(new BannerAdEventListener() {
-            @Override
-            public void onAdLoaded() {
-                bannerLoading = false;
-                bannerRetryScheduled = false;
-                bannerRetryCount = 0;
-                Log.d(TAG, "Banner loaded");
-                if (bannerShouldBeVisible) {
-                    runOnUiThread(() -> {
-                        if (bannerAdView != null) bannerAdView.setVisibility(View.VISIBLE);
-                    });
-                } else {
-                    runOnUiThread(() -> {
-                        if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
-                    });
+        Appodeal.setInterstitialCallbacks(new InterstitialCallbacks() {
+            @Override public void onInterstitialLoaded(boolean isPrecache) {
+                Log.i(TAG, "Interstitial loaded");
+                if (pendingInterstitial) {
+                    pendingInterstitial = false;
+                    showInterstitialAd();
                 }
             }
-            @Override
-            public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                Log.w(TAG, "Banner failed: " + error.getDescription());
-                bannerLoading = false;
-                bannerLoadStarted = false;
-                runOnUiThread(() -> {
-                    if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
-                });
-                scheduleBannerRetry();
-            }
-            @Override public void onAdClicked() {
-                Log.d(TAG, "Banner clicked");
-            }
-            @Override public void onImpression(ImpressionData impressionData) {
-                Log.i(TAG, "Banner impression: " + impressionData);
-            }
+            @Override public void onInterstitialFailedToLoad() { pendingInterstitial = false; }
+            @Override public void onInterstitialShown() { Log.i(TAG, "Interstitial shown"); }
+            @Override public void onInterstitialShowFailed() { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); }
+            @Override public void onInterstitialClicked() { Log.i(TAG, "Interstitial clicked"); }
+            @Override public void onInterstitialClosed() { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); }
+            @Override public void onInterstitialExpired() { Appodeal.cache(MainActivity.this, Appodeal.INTERSTITIAL); }
         });
 
-        // Preload immediately so the first gameplay request has a ready banner.
-        loadBannerAd();
-    }
+        Appodeal.setRewardedVideoCallbacks(new RewardedVideoCallbacks() {
+            @Override public void onRewardedVideoLoaded(boolean isPrecache) {
+                Log.i(TAG, "Rewarded video loaded");
+                if (pendingRewarded) showRewardedAdInternal();
+            }
+            @Override public void onRewardedVideoFailedToLoad() {
+                pendingRewarded = false;
+                fireJsEvent("reward:cancelled");
+            }
+            @Override public void onRewardedVideoShown() { Log.i(TAG, "Rewarded video shown"); }
+            @Override public void onRewardedVideoShowFailed() {
+                pendingRewarded = false;
+                fireJsEvent("reward:cancelled");
+                Appodeal.cache(MainActivity.this, Appodeal.REWARDED_VIDEO);
+            }
+            @Override public void onRewardedVideoClicked() { Log.i(TAG, "Rewarded clicked"); }
+            @Override public void onRewardedVideoFinished(double amount, String name) {
+                rewardEarned = true;
+                if (pendingRewardCallback != null) {
+                    pendingRewardCallback.run();
+                    pendingRewardCallback = null;
+                }
+                fireJsEvent("reward:double_score");
+            }
+            @Override public void onRewardedVideoClosed(boolean finished) {
+                if (!rewardEarned && !finished) {
+                    pendingRewardCallback = null;
+                    fireJsEvent("reward:cancelled");
+                }
+                rewardEarned = false;
+                pendingRewarded = false;
+                Appodeal.cache(MainActivity.this, Appodeal.REWARDED_VIDEO);
+            }
+            @Override public void onRewardedVideoExpired() { Appodeal.cache(MainActivity.this, Appodeal.REWARDED_VIDEO); }
+        });
 
-    private void loadBannerAd() {
-        if (bannerAdView == null || bannerLoading) return;
-        bannerLoadStarted = true;
-        bannerLoading = true;
-        bannerAdView.loadAd(new AdRequest.Builder(BANNER_AD_UNIT_ID).build());
-        Log.d(TAG, "Direct Yandex banner preload requested");
+        Appodeal.setNativeCallbacks(new NativeCallbacks() {
+            @Override public void onNativeLoaded() {
+                nativeAdLoaded = true;
+                if (nativeAdRequested) showNativeAdInternal();
+            }
+            @Override public void onNativeFailedToLoad() {
+                nativeAdLoaded = false;
+                if (nativeAdRequested) adHandler.postDelayed(() -> Appodeal.cache(MainActivity.this, Appodeal.NATIVE), 4000L);
+            }
+            @Override public void onNativeShown(NativeAd ad) { Log.i(TAG, "Native ad shown"); }
+            @Override public void onNativeShowFailed(NativeAd ad) { Log.w(TAG, "Native ad show failed"); }
+            @Override public void onNativeClicked(NativeAd ad) { Log.i(TAG, "Native ad clicked"); }
+            @Override public void onNativeExpired() { nativeAdLoaded = false; }
+        });
     }
-
-    private void scheduleBannerRetry() {
-        if (bannerRetryScheduled || bannerLoading || bannerAdView == null) return;
-        bannerRetryScheduled = true;
-        long delay = Math.min(AD_RETRY_MAX_MS,
-                AD_RETRY_BASE_MS * (1L << Math.min(bannerRetryCount++, 3)));
-        adHandler.postDelayed(() -> {
-            bannerRetryScheduled = false;
-            loadBannerAd();
-        }, delay);
-    }
-
-    // ── Banner show / hide ────────────────────────────────────────────────────
 
     void showBanner() {
         runOnUiThread(() -> {
-            if (bannerAdView == null) return;
-            bannerShouldBeVisible = true;
-            if (!bannerLoadStarted) loadBannerAd();
-            bannerAdView.setVisibility(View.VISIBLE);
-            // Hide feed while gameplay is active (banner visible)
-            feedShouldBeVisible = false;
-            if (feedContainer != null) feedContainer.setVisibility(View.GONE);
-            if (feedRecyclerView != null) feedRecyclerView.setVisibility(View.GONE);
-            setAdCloseVisible(false);
+            bannerRequested = true;
+            if (!adsInitialized) return;
+            boolean shown = false;
+            if (bannerView != null) {
+                bannerView.setVisibility(View.VISIBLE);
+                shown = Appodeal.show(this, Appodeal.BANNER_VIEW);
+            }
+            if (!shown) Appodeal.cache(this, Appodeal.BANNER);
         });
     }
 
     void hideBanner() {
+        bannerRequested = false;
         runOnUiThread(() -> {
-            bannerShouldBeVisible = false;
-            if (bannerAdView != null) bannerAdView.setVisibility(View.GONE);
-            // Show feed on shop / leaderboard / menu / game-over (when banner is hidden)
-            feedShouldBeVisible = true;
-            if (!feedAdLoaded) preloadFeedAd();
-            if (feedContainer != null) feedContainer.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
-            if (feedRecyclerView != null) feedRecyclerView.setVisibility(feedAdLoaded ? View.VISIBLE : View.GONE);
-            setAdCloseVisible(feedAdLoaded);
+            if (bannerView != null) bannerView.setVisibility(View.GONE);
         });
     }
 
-    // ── Interstitial Ad ──────────────────────────────────────────────────────
-
-    void loadInterstitialAd() {
+    private void showNativeAdInternal() {
         runOnUiThread(() -> {
-            if (interstitialAd != null || interstitialLoading) return;
-            if (interstitialLoader == null) {
-                interstitialLoader = new InterstitialAdLoader(this);
+            if (!nativeAdRequested || nativeAdView == null || !Appodeal.isLoaded(Appodeal.NATIVE)) return;
+            List<NativeAd> ads = Appodeal.getNativeAds(1);
+            if (ads == null || ads.isEmpty()) {
+                Appodeal.cache(this, Appodeal.NATIVE);
+                return;
             }
-            interstitialLoading = true;
-            interstitialLoader.loadAd(
-                    new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
-                    new InterstitialAdLoadListener() {
-                        @Override public void onAdLoaded(@NonNull InterstitialAd ad) {
-                            interstitialLoading = false;
-                            interstitialRetryScheduled = false;
-                            interstitialRetryCount = 0;
-                            interstitialAd = ad;
-                            Log.d(TAG, "Interstitial loaded and cached");
-                        }
-                        @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                            interstitialLoading = false;
-                            interstitialAd = null;
-                            Log.w(TAG, "Interstitial failed: " + error.getDescription());
-                            scheduleInterstitialRetry();
-                        }
-                    });
+            try { nativeAdView.unregisterView(); } catch (Exception ignored) {}
+            if (nativeAdView.registerView(ads.get(0))) {
+                nativeAdView.setVisibility(View.VISIBLE);
+                nativeAdLoaded = true;
+            }
         });
     }
 
-    private void scheduleInterstitialRetry() {
-        if (interstitialRetryScheduled || interstitialAd != null || interstitialLoader == null) return;
-        interstitialRetryScheduled = true;
-        long delay = Math.min(AD_RETRY_MAX_MS,
-                AD_RETRY_BASE_MS * (1L << Math.min(interstitialRetryCount++, 3)));
-        adHandler.postDelayed(() -> {
-            interstitialRetryScheduled = false;
-            loadInterstitialAd();
-        }, delay);
+    void showNativeAd() {
+        nativeAdRequested = true;
+        if (nativeAdLoaded) showNativeAdInternal();
+        else Appodeal.cache(this, Appodeal.NATIVE);
     }
+
+    void hideNativeAd() {
+        runOnUiThread(() -> {
+            if (nativeAdView != null) {
+                try { nativeAdView.unregisterView(); } catch (Exception ignored) {}
+                nativeAdView.setVisibility(View.GONE);
+            }
+            nativeAdRequested = false;
+        });
+    }
+
+    // Keep the existing feed bridge harmless and compatible with old game calls.
+    void showFeedAd() { showNativeAd(); }
+    void hideFeedAd() { hideNativeAd(); }
 
     void showInterstitialAd() {
         runOnUiThread(() -> {
-            if (interstitialAd == null) {
-                Log.d(TAG, "Interstitial not ready; keeping the next request controlled");
-                loadInterstitialAd();
-                return;
+            if (!adsInitialized) { pendingInterstitial = true; return; }
+            if (Appodeal.isLoaded(Appodeal.INTERSTITIAL)) {
+                pendingInterstitial = !Appodeal.show(this, Appodeal.INTERSTITIAL);
+                if (pendingInterstitial) Appodeal.cache(this, Appodeal.INTERSTITIAL);
+            } else {
+                pendingInterstitial = true;
+                Appodeal.cache(this, Appodeal.INTERSTITIAL);
             }
-            final InterstitialAd adToShow = interstitialAd;
-            interstitialAd = null;
-            adToShow.setAdEventListener(new InterstitialAdEventListener() {
-                @Override public void onAdShown() { Log.d(TAG, "Interstitial shown"); }
-                @Override public void onAdFailedToShow(@NonNull AdError e) {
-                    adToShow.setAdEventListener(null);
-                    Log.w(TAG, "Interstitial failed to show: " + e.getDescription());
-                    loadInterstitialAd();
-                }
-                @Override public void onAdDismissed() {
-                    adToShow.setAdEventListener(null);
-                    loadInterstitialAd();
-                }
-                @Override public void onAdClicked() { Log.d(TAG, "Interstitial clicked"); }
-                @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "Interstitial impression: " + d); }
-            });
-            loadInterstitialAd();
-            adToShow.show(MainActivity.this);
         });
     }
 
-    // ── Rewarded Ad ──────────────────────────────────────────────────────────
-
-    void loadRewardedAd() {
+    private void showRewardedAdInternal() {
         runOnUiThread(() -> {
-            if (rewardedAd != null || rewardedLoading) return;
-            if (rewardedLoader == null) rewardedLoader = new RewardedAdLoader(this);
-            rewardedLoading = true;
-            rewardedLoader.loadAd(
-                    new AdRequest.Builder(REWARDED_AD_UNIT_ID).build(),
-                    new RewardedAdLoadListener() {
-                        @Override public void onAdLoaded(@NonNull RewardedAd ad) {
-                            rewardedLoading = false;
-                            rewardedRetryScheduled = false;
-                            rewardedRetryCount = 0;
-                            rewardedAd = ad;
-                            Log.d(TAG, "Rewarded ad loaded and cached");
-                        }
-                        @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                            rewardedLoading = false;
-                            rewardedAd = null;
-                            Log.w(TAG, "Rewarded failed: " + error.getDescription());
-                            scheduleRewardedRetry();
-                        }
-                    });
+            if (!adsInitialized) { pendingRewarded = true; return; }
+            if (Appodeal.isLoaded(Appodeal.REWARDED_VIDEO)) {
+                pendingRewarded = false;
+                rewardEarned = false;
+                if (!Appodeal.show(this, Appodeal.REWARDED_VIDEO)) {
+                    fireJsEvent("reward:cancelled");
+                }
+            } else {
+                pendingRewarded = true;
+                Appodeal.cache(this, Appodeal.REWARDED_VIDEO);
+            }
         });
-    }
-
-    private void scheduleRewardedRetry() {
-        if (rewardedRetryScheduled || rewardedAd != null || rewardedLoader == null) return;
-        rewardedRetryScheduled = true;
-        long delay = Math.min(AD_RETRY_MAX_MS,
-                AD_RETRY_BASE_MS * (1L << Math.min(rewardedRetryCount++, 3)));
-        adHandler.postDelayed(() -> {
-            rewardedRetryScheduled = false;
-            loadRewardedAd();
-        }, delay);
     }
 
     void showRewardedAd(Runnable onRewarded) {
+        // Preserve the existing bridge callback as well as the Appodeal JS event.
         pendingRewardCallback = onRewarded;
-        runOnUiThread(() -> {
-            if (rewardedAd == null) {
-                Log.d(TAG, "Rewarded ad not ready; keeping the next request controlled");
-                loadRewardedAd();
-                return;
+        showRewardedAdInternal();
+    }
+
+    void loadInterstitialAd() { Appodeal.cache(this, Appodeal.INTERSTITIAL); }
+    void loadRewardedAd() { Appodeal.cache(this, Appodeal.REWARDED_VIDEO); }
+    void showAppOpenAd() { /* Appodeal migration keeps the existing lifecycle hook harmless. */ }
+
+    private void fireJsEvent(String event) {
+        adHandler.post(() -> {
+            if (webView != null) {
+                String js = "try{if(window.app&&typeof window.app.fire==='function'){app.fire('" + event + "');}}catch(e){}";
+                webView.evaluateJavascript(js, null);
             }
-            final RewardedAd adToShow = rewardedAd;
-            rewardedAd = null;
-            adToShow.setAdEventListener(new RewardedAdEventListener() {
-                @Override public void onRewarded(@NonNull Reward reward) {
-                    Log.d(TAG, "User earned reward: " + reward.getAmount() + " " + reward.getType());
-                    if (pendingRewardCallback != null) {
-                        pendingRewardCallback.run();
-                        pendingRewardCallback = null;
-                    }
-                }
-                @Override public void onAdShown() { Log.d(TAG, "Rewarded shown"); }
-                @Override public void onAdDismissed() {
-                    adToShow.setAdEventListener(null);
-                    loadRewardedAd();
-                }
-                @Override public void onAdFailedToShow(@NonNull AdError e) {
-                    adToShow.setAdEventListener(null);
-                    Log.w(TAG, "Rewarded failed to show: " + e.getDescription());
-                    loadRewardedAd();
-                }
-                @Override public void onAdClicked() { Log.d(TAG, "Rewarded clicked"); }
-                @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "Rewarded impression: " + d); }
-            });
-            loadRewardedAd();
-            adToShow.show(MainActivity.this);
-        });
-    }
-
-    // ── App Open Ad ──────────────────────────────────────────────────────────
-
-    void loadAppOpenAd() {
-        runOnUiThread(() -> {
-            if (appOpenAd != null || appOpenLoading) return;
-            if (appOpenAdLoader == null) appOpenAdLoader = new AppOpenAdLoader(this);
-            appOpenLoading = true;
-            appOpenAdLoader.loadAd(
-                    new AdRequest.Builder(APP_OPEN_AD_UNIT_ID).build(),
-                    new AppOpenAdLoadListener() {
-                        @Override public void onAdLoaded(@NonNull AppOpenAd ad) {
-                            appOpenLoading = false;
-                            appOpenRetryScheduled = false;
-                            appOpenRetryCount = 0;
-                            appOpenAd = ad;
-                            Log.d(TAG, "App Open ad loaded and cached");
-                        }
-                        @Override public void onAdFailedToLoad(@NonNull AdRequestError error) {
-                            appOpenLoading = false;
-                            appOpenAd = null;
-                            Log.w(TAG, "App Open ad failed: " + error.getDescription());
-                            scheduleAppOpenRetry();
-                        }
-                    });
-        });
-    }
-
-    private void scheduleAppOpenRetry() {
-        if (appOpenRetryScheduled || appOpenAd != null || appOpenAdLoader == null) return;
-        appOpenRetryScheduled = true;
-        long delay = Math.min(AD_RETRY_MAX_MS,
-                AD_RETRY_BASE_MS * (1L << Math.min(appOpenRetryCount++, 3)));
-        adHandler.postDelayed(() -> {
-            appOpenRetryScheduled = false;
-            loadAppOpenAd();
-        }, delay);
-    }
-
-    void showAppOpenAd() {
-        runOnUiThread(() -> {
-            if (appOpenAd == null || appOpenAdShowing) return;
-            final AppOpenAd adToShow = appOpenAd;
-            appOpenAd = null;
-            appOpenAdShowing = true;
-            adToShow.setAdEventListener(new AppOpenAdEventListener() {
-                @Override public void onAdShown() { Log.d(TAG, "App Open shown"); }
-                @Override public void onAdFailedToShow(@NonNull AdError e) {
-                    appOpenAdShowing = false;
-                    adToShow.setAdEventListener(null);
-                    Log.w(TAG, "App Open failed to show: " + e.getDescription());
-                    loadAppOpenAd();
-                }
-                @Override public void onAdDismissed() {
-                    appOpenAdShowing = false;
-                    adToShow.setAdEventListener(null);
-                    loadAppOpenAd();
-                }
-                @Override public void onAdClicked() { Log.d(TAG, "App Open clicked"); }
-                @Override public void onAdImpression(ImpressionData d) { Log.i(TAG, "App Open impression: " + d); }
-            });
-            loadAppOpenAd();
-            adToShow.show(MainActivity.this);
         });
     }
 

@@ -55,21 +55,21 @@ public class AndroidBridge {
 
     // ── Native Ad ────────────────────────────────────────────────────────────
 
-    /** Show a Yandex native placement after it has been loaded. */
+    /** Show a Appodeal native placement after it has been loaded. */
     @JavascriptInterface
     public void showNativeAd() { activity.showNativeAd(); }
 
-    /** Hide the Yandex native placement without destroying its loaded ad. */
+    /** Hide the Appodeal native placement without destroying its loaded ad. */
     @JavascriptInterface
     public void hideNativeAd() { activity.hideNativeAd(); }
 
     // ── Feed Ad ──────────────────────────────────────────────────────────────
 
-    /** Show the Yandex feed placement. */
+    /** Show the Appodeal native compatibility placement. */
     @JavascriptInterface
     public void showFeedAd() { activity.showFeedAd(); }
 
-    /** Hide the Yandex feed placement. */
+    /** Hide the Appodeal native compatibility placement. */
     @JavascriptInterface
     public void hideFeedAd() { activity.hideFeedAd(); }
 

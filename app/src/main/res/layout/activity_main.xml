@@ -2,9 +2,8 @@
 <!--
     Layout structure (bottom-up stacking in FrameLayout):
       1. WebView       — full screen, the GDevelop game
-      2. feedContainer  — optional Yandex feed placement (GONE until requested)
-      3. nativeAdContainer — optional Yandex native placement (GONE until requested)
-      4. bannerAdView  — sticky banner at bottom (GONE until gameplay starts)
+      2. appodealNativeAdView — optional Appodeal native placement
+      3. appodealBannerView — banner at bottom (GONE until gameplay starts)
       5. privacyPolicyBtn — floats at bottom corner
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -17,60 +16,18 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <FrameLayout
-        android:id="@+id/feedContainer"
-        android:layout_width="match_parent"
-        android:layout_height="228dp"
-        android:minHeight="228dp"
-        android:layout_gravity="top"
-        android:layout_marginTop="12dp"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp"
-        android:visibility="gone"
-        android:background="#F20B1220"
-        android:padding="4dp">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/feedRecyclerView"
-            android:layout_width="match_parent"
-            android:layout_height="220dp"
-            android:minHeight="220dp"
-            android:clipToPadding="false" />
-    </FrameLayout>
-
-    <FrameLayout
-        android:id="@+id/nativeAdContainer"
+    <com.appodeal.ads.nativead.NativeAdViewNewsFeed
+        android:id="@+id/appodealNativeAdView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:layout_marginTop="12dp"
         android:layout_marginStart="12dp"
         android:layout_marginEnd="12dp"
-        android:visibility="gone"
-        android:background="@android:color/transparent"
-        android:padding="8dp" />
+        android:visibility="gone" />
 
-    <!-- App-owned close control for Native/Feed overlays. It sits outside the ad creative. -->
-    <Button
-        android:id="@+id/adCloseButton"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_gravity="top|end"
-        android:layout_marginTop="4dp"
-        android:layout_marginEnd="4dp"
-        android:background="#CC0B1220"
-        android:minWidth="0dp"
-        android:minHeight="0dp"
-        android:padding="0dp"
-        android:text="✕"
-        android:textColor="#FFFFFF"
-        android:textSize="20sp"
-        android:visibility="gone"
-        android:contentDescription="Close advertisement" />
-
-    <!-- Yandex sticky banner — size set programmatically in MainActivity -->
-    <com.yandex.mobile.ads.banner.BannerAdView
-        android:id="@+id/bannerAdView"
+    <com.appodeal.ads.BannerView
+        android:id="@+id/appodealBannerView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"

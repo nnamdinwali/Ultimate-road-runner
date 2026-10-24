@@ -130,7 +130,7 @@
                     window._runEarnedCoins = Math.max(0, coinsNow - _runStartCoins);
                 } catch(e) { window._runEarnedCoins = 0; }
 
-                // Show a direct Yandex interstitial on every death.
+                // Show a Appodeal interstitial on every death.
                 // The Android loader itself prevents duplicate requests and only
                 // displays a loaded ad; if one is not ready, the next one remains cached.
                 if (window.AndroidBridge && typeof window.AndroidBridge.showInterstitialAd === 'function') {
@@ -197,8 +197,8 @@
                         }
                     }
 
-                    // 3. Native and Feed placements communicate through AndroidBridge.
-                    // Native is used on the Menu; Feed is used in the Shop. Both remain
+                    // 3. Native placements communicate through AndroidBridge.
+                    // Native is used on the Menu and the same native format is reused in the Shop. Both remain
                     // hidden during active gameplay, Game Over, and Settings.
                     var nativeTarget = menuVisible && !settingsVisible;
                     var feedTarget = shopVisible && !settingsVisible;
